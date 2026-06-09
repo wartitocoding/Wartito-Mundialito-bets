@@ -1,0 +1,11 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "env": {
+    "JWT_SECRET": "@JWT_SECRET",
+    "API_FOOTBALL_KEY": "@API_FOOTBALL_KEY",
+    "ADMIN_TOKEN": "@ADMIN_TOKEN"
+  }
+}
