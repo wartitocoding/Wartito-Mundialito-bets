@@ -90,7 +90,7 @@ export default function PredictPage() {
             ← Volver
           </Link>
           <span style={{ color: 'rgba(255,255,255,0.2)' }}>|</span>
-          <span style={{ color: 'white', fontWeight: 800, fontSize: '0.95rem' }}>Mundialito <span style={{ color: '#60a5fa' }}>Bets</span></span>
+          <span style={{ color: 'white', fontWeight: 800, fontSize: '0.95rem' }}>Wartito Mundialito <span style={{ color: '#60a5fa' }}>Bets</span></span>
         </div>
       </nav>
 

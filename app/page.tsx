@@ -18,7 +18,7 @@ export default function Home() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 20 }}>⚽</span>
             <span style={{ color: 'white', fontWeight: 800, fontSize: '1rem', letterSpacing: '-0.02em' }}>
-              Mundialito <span style={{ color: '#60a5fa' }}>Bets</span>
+              Wartito Mundialito <span style={{ color: '#60a5fa' }}>Bets</span>
             </span>
           </div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -108,7 +108,7 @@ export default function Home() {
 
       {/* Footer */}
       <div style={{ borderTop: '1px solid var(--border)', padding: '24px', textAlign: 'center', background: 'white' }}>
-        <p style={{ color: 'var(--muted)', fontSize: '0.8rem', margin: 0 }}>Mundialito Bets 2026 · Solo para uso privado entre amigos</p>
+        <p style={{ color: 'var(--muted)', fontSize: '0.8rem', margin: 0 }}>Wartito Mundialito Bets 2026 · Solo para uso privado entre amigos</p>
       </div>
     </div>
   );

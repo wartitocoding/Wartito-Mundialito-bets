@@ -103,7 +103,7 @@ export default function Dashboard() {
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
             <span style={{ fontSize: 18 }}>⚽</span>
-            <span style={{ color: 'white', fontWeight: 800, fontSize: '0.95rem' }}>Mundialito <span style={{ color: '#60a5fa' }}>Bets</span></span>
+            <span style={{ color: 'white', fontWeight: 800, fontSize: '0.95rem' }}>Wartito Mundialito <span style={{ color: '#60a5fa' }}>Bets</span></span>
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ textAlign: 'right' }}>

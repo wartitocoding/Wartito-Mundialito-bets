@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Mundialito Bets",
+  title: "Wartito Mundialito Bets",
   description: "Predicciones del Mundial 2026 — Competí con tus amigos",
 };
 
