@@ -32,6 +32,7 @@ interface Prediction {
   prediction1: number;
   prediction2: number;
   points: number;
+  isWildcard: number;
 }
 
 function Logo({ size = 36 }: { size?: number }) {
@@ -352,7 +353,7 @@ export default function Dashboard() {
                                 </div>
                               ) : pred ? (
                                 <div>
-                                  <div style={{ fontSize: '0.6rem', color: '#16a34a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tu apuesta ✓</div>
+                                  <div style={{ fontSize: '0.6rem', color: '#16a34a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tu apuesta ✓{pred.isWildcard === 1 ? ' ⚡' : ''}</div>
                                   <div style={{ fontWeight: 800, fontSize: '2rem', color: '#166534', letterSpacing: '-0.05em', lineHeight: 1 }}>{pred.prediction1} – {pred.prediction2}</div>
                                 </div>
                               ) : isPast ? (
@@ -363,9 +364,14 @@ export default function Dashboard() {
 
                               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                 {isPlayed && pred && (
-                                  <span style={{ fontWeight: 800, fontSize: '1.5rem', letterSpacing: '-0.03em', color: isExact ? '#16a34a' : (pred.points || 0) > 0 ? '#2563eb' : '#ef4444' }}>
-                                    {isExact ? '🎯' : (pred.points || 0) > 0 ? '✅' : '❌'} {pred.points || 0}pt{pred.points !== 1 ? 's' : ''}
-                                  </span>
+                                  <div style={{ textAlign: 'right' }}>
+                                    {pred.isWildcard === 1 && (
+                                      <div style={{ fontSize: '0.65rem', color: '#d97706', fontWeight: 700, marginBottom: 2 }}>⚡ x2</div>
+                                    )}
+                                    <span style={{ fontWeight: 800, fontSize: '1.5rem', letterSpacing: '-0.03em', color: isExact ? '#16a34a' : (pred.points || 0) > 0 ? '#2563eb' : '#ef4444' }}>
+                                      {isExact ? '🎯' : (pred.points || 0) > 0 ? '✅' : '❌'} {pred.points || 0}pt{pred.points !== 1 ? 's' : ''}
+                                    </span>
+                                  </div>
                                 )}
                                 {!isPlayed && !isPast && (
                                   <Link href={`/predict/${match.id}`}
@@ -434,7 +440,7 @@ export default function Dashboard() {
                       )}
                       <Link href={`/predict/${match.id}`}
                         style={{ background: 'var(--navy)', color: 'white', padding: '8px 16px', borderRadius: 8, fontSize: '0.8rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                        {pred ? 'Cambiar apuesta' : 'Paltar'}
+                        {pred ? 'Cambiar apuesta' : 'Apostar'}
                       </Link>
                     </div>
                   );
@@ -597,6 +603,9 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <div style={{ textAlign: 'center', minWidth: 56 }}>
+                        {pred?.isWildcard === 1 && (
+                          <div style={{ fontSize: '0.65rem', color: '#d97706', fontWeight: 700, marginBottom: 2 }}>⚡ x2</div>
+                        )}
                         <div style={{ fontWeight: 800, fontSize: '2.2rem', letterSpacing: '-0.05em', lineHeight: 1, color: isExact ? '#10b981' : isCorrect ? '#3b82f6' : pts === 0 && pred ? '#ef4444' : 'var(--muted)' }}>
                           {pts > 0 ? `+${pts}` : pred ? '0' : '—'}
                         </div>
