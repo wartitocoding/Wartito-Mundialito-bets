@@ -43,7 +43,7 @@ export default function Home() {
       </nav>
 
       {/* Hero */}
-      <div style={{ background: 'var(--navy)', paddingBottom: 64 }}>
+      <div style={{ background: 'linear-gradient(135deg, #080f1e 0%, #0f1f3d 40%, #1a3a6e 75%, #1e4080 100%)', paddingBottom: 64 }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '64px 24px 0' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.2)', borderRadius: 999, padding: '4px 14px', marginBottom: 24 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399', display: 'inline-block' }}></span>

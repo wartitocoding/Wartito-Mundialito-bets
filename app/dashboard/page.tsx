@@ -37,16 +37,12 @@ interface Prediction {
 function Logo({ size = 36 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Outer circle */}
       <circle cx="20" cy="20" r="19" fill="#0f1f3d" stroke="#3b82f6" strokeWidth="1.5"/>
-      {/* Soccer ball pentagon shapes */}
       <polygon points="20,6 25,11 23,17 17,17 15,11" fill="#3b82f6" opacity="0.35"/>
       <polygon points="7,17 12,13 16,17 14,23 8,23" fill="#3b82f6" opacity="0.25"/>
       <polygon points="33,17 28,13 24,17 26,23 32,23" fill="#3b82f6" opacity="0.25"/>
       <polygon points="11,31 14,25 20,26 26,25 29,31 20,35" fill="#3b82f6" opacity="0.2"/>
-      {/* Star (Chilean tribute) */}
       <polygon points="20,7 21.2,10.6 25,10.6 22,12.8 23.1,16.4 20,14.2 16.9,16.4 18,12.8 15,10.6 18.8,10.6" fill="white" opacity="0.95"/>
-      {/* W monogram */}
       <text x="20" y="30" textAnchor="middle" fill="white" fontSize="9.5" fontWeight="800" fontFamily="Inter,Arial,sans-serif" letterSpacing="-0.5">WMB</text>
     </svg>
   );
@@ -54,7 +50,7 @@ function Logo({ size = 36 }: { size?: number }) {
 
 function getWeekBounds() {
   const now = new Date();
-  const day = now.getDay(); // 0=Sun
+  const day = now.getDay();
   const monday = new Date(now);
   monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
   monday.setHours(0, 0, 0, 0);
@@ -72,6 +68,12 @@ function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
+const podiumConfig = [
+  { medalEmoji: '🥇', accent: '#f59e0b', bg: '#fffbeb', borderColor: '#fcd34d', tall: true },
+  { medalEmoji: '🥈', accent: '#94a3b8', bg: '#f8fafc', borderColor: '#cbd5e1', tall: false },
+  { medalEmoji: '🥉', accent: '#cd7c2e', bg: '#fff8f3', borderColor: '#fdba74', tall: false },
+];
+
 export default function Dashboard() {
   const router = useRouter();
   const [matches, setMatches] = useState<Match[]>([]);
@@ -80,6 +82,7 @@ export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'calendar' | 'matches' | 'ranking' | 'my-predictions'>('calendar');
+  const [prevRankings, setPrevRankings] = useState<{[id: number]: number}>({});
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -88,6 +91,26 @@ export default function Dashboard() {
     const interval = setInterval(() => fetchData(token), 10000);
     return () => clearInterval(interval);
   }, [router]);
+
+  useEffect(() => {
+    if (rankings.length === 0) return;
+    const stored = localStorage.getItem('wmbPrevRankings');
+    const now = Date.now();
+    if (stored) {
+      const { data, timestamp } = JSON.parse(stored);
+      if (now - timestamp < 3600000) {
+        setPrevRankings(data);
+      } else {
+        const pos: {[id: number]: number} = {};
+        rankings.forEach((r, i) => { pos[r.id] = i + 1; });
+        localStorage.setItem('wmbPrevRankings', JSON.stringify({ data: pos, timestamp: now }));
+      }
+    } else {
+      const pos: {[id: number]: number} = {};
+      rankings.forEach((r, i) => { pos[r.id] = i + 1; });
+      localStorage.setItem('wmbPrevRankings', JSON.stringify({ data: pos, timestamp: now }));
+    }
+  }, [rankings.length]);
 
   const fetchData = async (token: string) => {
     try {
@@ -132,13 +155,11 @@ export default function Dashboard() {
   const nextMatches = matches.filter((m) => new Date(m.date) > now);
   const finishedMatches = matches.filter((m) => m.result1 !== null);
 
-  // Weekly calendar: all matches this week (played or upcoming)
   const weekMatches = matches.filter((m) => {
     const d = new Date(m.date);
     return d >= monday && d <= sunday;
   }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  // Group by day
   const weekDays: { date: Date; matches: Match[] }[] = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday);
@@ -148,6 +169,7 @@ export default function Dashboard() {
   }
 
   const weekMatchCount = weekMatches.filter(m => new Date(m.date) > now).length;
+  const myRankPos = rankings.findIndex(r => r.id === user?.id) + 1;
 
   const tabs = [
     { key: 'calendar' as const, label: '📅 Semana', count: weekMatchCount },
@@ -158,8 +180,9 @@ export default function Dashboard() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--surface)' }}>
+
       {/* Navbar */}
-      <nav style={{ background: 'var(--navy)', borderBottom: '1px solid rgba(255,255,255,0.06)', position: 'sticky', top: 0, zIndex: 50 }}>
+      <nav style={{ background: 'linear-gradient(120deg, #08121f 0%, #0f1f3d 45%, #1a3260 100%)', borderBottom: '1px solid rgba(255,255,255,0.06)', position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
             <Logo size={34} />
@@ -180,7 +203,35 @@ export default function Dashboard() {
         </div>
       </nav>
 
+      {/* Header strip */}
+      {user && (
+        <div style={{ background: 'linear-gradient(90deg, #0f1f3d 0%, #1a3260 60%, #2563eb 100%)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ maxWidth: 1100, margin: '0 auto', padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem', fontWeight: 600 }}>
+              Hola, {user.name.split(' ')[0]}
+            </span>
+            <div style={{ display: 'flex', gap: 32 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ color: 'white', fontWeight: 800, fontSize: '1.7rem', lineHeight: 1, letterSpacing: '-0.04em' }}>{user.totalPoints || 0}</div>
+                <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>puntos</div>
+              </div>
+              {myRankPos > 0 && (
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ color: myRankPos === 1 ? '#fcd34d' : 'white', fontWeight: 800, fontSize: '1.7rem', lineHeight: 1, letterSpacing: '-0.04em' }}>#{myRankPos}</div>
+                  <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>posición</div>
+                </div>
+              )}
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ color: 'white', fontWeight: 800, fontSize: '1.7rem', lineHeight: 1, letterSpacing: '-0.04em' }}>{user.totalPredictions || 0}</div>
+                <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>paltas</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
+
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', marginBottom: 28, overflowX: 'auto' }}>
           {tabs.map((tab) => (
@@ -203,7 +254,6 @@ export default function Dashboard() {
         {/* ====== CALENDAR TAB ====== */}
         {activeTab === 'calendar' && (
           <div>
-            {/* Week header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
               <div>
                 <h2 style={{ fontWeight: 800, fontSize: '1.3rem', color: 'var(--navy)', margin: '0 0 4px', letterSpacing: '-0.02em' }}>
@@ -233,22 +283,19 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Days */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {weekDays.map(({ date, matches: dayMatches }) => {
                 const isToday = isSameDay(date, now);
                 if (dayMatches.length === 0) return null;
                 return (
                   <div key={date.toISOString()}>
-                    {/* Day header */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                       <div style={{
                         background: isToday ? 'var(--navy)' : 'var(--surface)',
                         color: isToday ? 'white' : 'var(--muted)',
                         border: `1px solid ${isToday ? 'var(--navy)' : 'var(--border)'}`,
                         borderRadius: 8, padding: '4px 12px',
-                        fontSize: '0.8rem', fontWeight: 700,
-                        textTransform: 'capitalize',
+                        fontSize: '0.8rem', fontWeight: 700, textTransform: 'capitalize',
                       }}>
                         {isToday ? '📍 Hoy — ' : ''}{formatDayHeader(date)}
                       </div>
@@ -258,7 +305,6 @@ export default function Dashboard() {
                       </span>
                     </div>
 
-                    {/* Day matches */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 10 }}>
                       {dayMatches.map((match) => {
                         const pred = predictions.find(p => p.matchId === match.id);
@@ -268,12 +314,13 @@ export default function Dashboard() {
 
                         let bgColor = '#ffffff';
                         let borderColor = 'var(--border)';
-                        if (isPlayed) { bgColor = '#f8fafc'; borderColor = '#cbd5e1'; }
-                        else if (pred) { bgColor = '#f0fdf4'; borderColor = '#86efac'; }
-                        else if (!isPast) { bgColor = '#fff7f7'; borderColor = '#fca5a5'; }
+                        let leftAccent = 'transparent';
+                        if (isPlayed) { bgColor = '#f8fafc'; borderColor = '#cbd5e1'; leftAccent = '#cbd5e1'; }
+                        else if (pred) { bgColor = '#f0fdf4'; borderColor = '#86efac'; leftAccent = '#22c55e'; }
+                        else if (!isPast) { bgColor = '#fff7f7'; borderColor = '#fca5a5'; leftAccent = '#ef4444'; }
 
                         return (
-                          <div key={match.id} style={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: 10, padding: '14px 16px' }}>
+                          <div key={match.id} style={{ background: bgColor, border: `1px solid ${borderColor}`, borderLeft: `3px solid ${leftAccent}`, borderRadius: 10, padding: '14px 16px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                               <div>
                                 <span className="tag" style={{ marginBottom: 4, display: 'inline-block' }}>{match.stage}</span>
@@ -285,31 +332,28 @@ export default function Dashboard() {
                                 <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--navy)' }}>
                                   {new Date(match.date).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
                                 </div>
-                                {isPlayed && (
-                                  <div style={{ fontSize: '0.75rem', color: 'var(--muted)', fontWeight: 600 }}>Finalizado</div>
-                                )}
+                                {isPlayed && <div style={{ fontSize: '0.75rem', color: 'var(--muted)', fontWeight: 600 }}>Finalizado</div>}
                               </div>
                             </div>
 
-                            {/* Score area */}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                               {isPlayed ? (
-                                <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                                <div style={{ display: 'flex', gap: 20, alignItems: 'flex-end' }}>
                                   <div>
-                                    <div style={{ fontSize: '0.65rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Resultado</div>
-                                    <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--navy)' }}>{match.result1} – {match.result2}</div>
+                                    <div style={{ fontSize: '0.6rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Resultado</div>
+                                    <div style={{ fontWeight: 800, fontSize: '2rem', color: 'var(--navy)', letterSpacing: '-0.05em', lineHeight: 1 }}>{match.result1} – {match.result2}</div>
                                   </div>
                                   {pred && (
                                     <div>
-                                      <div style={{ fontSize: '0.65rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tu palta</div>
-                                      <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--navy)' }}>{pred.prediction1} – {pred.prediction2}</div>
+                                      <div style={{ fontSize: '0.6rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tu palta</div>
+                                      <div style={{ fontWeight: 800, fontSize: '2rem', color: 'var(--navy)', letterSpacing: '-0.05em', lineHeight: 1 }}>{pred.prediction1} – {pred.prediction2}</div>
                                     </div>
                                   )}
                                 </div>
                               ) : pred ? (
                                 <div>
-                                  <div style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tu palta ✓</div>
-                                  <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#166534' }}>{pred.prediction1} – {pred.prediction2}</div>
+                                  <div style={{ fontSize: '0.6rem', color: '#16a34a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tu palta ✓</div>
+                                  <div style={{ fontWeight: 800, fontSize: '2rem', color: '#166534', letterSpacing: '-0.05em', lineHeight: 1 }}>{pred.prediction1} – {pred.prediction2}</div>
                                 </div>
                               ) : isPast ? (
                                 <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Sin palta registrada</span>
@@ -319,10 +363,7 @@ export default function Dashboard() {
 
                               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                 {isPlayed && pred && (
-                                  <span style={{
-                                    fontWeight: 800, fontSize: '1rem',
-                                    color: isExact ? '#16a34a' : (pred.points || 0) > 0 ? '#2563eb' : '#ef4444'
-                                  }}>
+                                  <span style={{ fontWeight: 800, fontSize: '1.5rem', letterSpacing: '-0.03em', color: isExact ? '#16a34a' : (pred.points || 0) > 0 ? '#2563eb' : '#ef4444' }}>
                                     {isExact ? '🎯' : (pred.points || 0) > 0 ? '✅' : '❌'} {pred.points || 0}pt{pred.points !== 1 ? 's' : ''}
                                   </span>
                                 )}
@@ -369,7 +410,7 @@ export default function Dashboard() {
                 {nextMatches.map((match) => {
                   const pred = predictions.find((p) => p.matchId === match.id);
                   return (
-                    <div key={match.id} className="card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <div key={match.id} className="card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16, borderLeft: `3px solid ${pred ? '#22c55e' : 'var(--border)'}` }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                           <span className="tag">{match.stage}</span>
@@ -382,9 +423,9 @@ export default function Dashboard() {
                         </div>
                       </div>
                       {pred ? (
-                        <div style={{ textAlign: 'center', padding: '6px 14px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8 }}>
-                          <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#166534' }}>{pred.prediction1} – {pred.prediction2}</div>
-                          <div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 600 }}>Tu palta</div>
+                        <div style={{ textAlign: 'center', padding: '8px 16px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8 }}>
+                          <div style={{ fontWeight: 800, fontSize: '1.7rem', color: '#166534', letterSpacing: '-0.05em', lineHeight: 1 }}>{pred.prediction1} – {pred.prediction2}</div>
+                          <div style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 3 }}>Tu palta</div>
                         </div>
                       ) : (
                         <div style={{ textAlign: 'center', padding: '6px 14px', background: '#fafafa', border: '1px solid var(--border)', borderRadius: 8, minWidth: 80 }}>
@@ -409,46 +450,103 @@ export default function Dashboard() {
             <div style={{ marginBottom: 20 }}>
               <h2 style={{ fontWeight: 800, fontSize: '1.3rem', color: 'var(--navy)', margin: 0, letterSpacing: '-0.02em' }}>¿Quién va ganando?</h2>
             </div>
-            <div className="card" style={{ overflow: 'hidden' }}>
-              <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: 'left' }}>#</th>
-                    <th style={{ textAlign: 'left' }}>Jugador</th>
-                    <th style={{ textAlign: 'center' }}>Campeón elegido</th>
-                    <th style={{ textAlign: 'center' }}>Paltas</th>
-                    <th style={{ textAlign: 'center' }}>Pts Partidos</th>
-                    <th style={{ textAlign: 'center' }}>Pts Campeón</th>
-                    <th style={{ textAlign: 'center' }}>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rankings.map((rank, i) => {
-                    const isMe = rank.id === user?.id;
-                    return (
-                      <tr key={rank.id} style={{ background: isMe ? '#eff6ff' : 'white' }}>
-                        <td>
-                          <span style={{ fontWeight: 800, color: i === 0 ? '#f59e0b' : i === 1 ? '#94a3b8' : i === 2 ? '#cd7c2e' : 'var(--muted)', fontSize: i < 3 ? '1rem' : '0.875rem' }}>
-                            {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
-                          </span>
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.9rem' }}>
-                            {rank.name}{isMe && <span style={{ fontSize: '0.7rem', color: '#2563eb', fontWeight: 700, background: '#eff6ff', padding: '1px 6px', borderRadius: 4, marginLeft: 6 }}>TÚ</span>}
-                          </div>
-                        </td>
-                        <td style={{ textAlign: 'center', fontSize: '0.8rem', color: 'var(--muted)' }}>{rank.championPrediction || '—'}</td>
-                        <td style={{ textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem' }}>{rank.totalPredictions || 0}</td>
-                        <td style={{ textAlign: 'center' }}><span style={{ fontWeight: 700, color: '#16a34a' }}>{rank.matchPoints || 0}</span></td>
-                        <td style={{ textAlign: 'center' }}><span style={{ fontWeight: 700, color: '#d97706' }}>{rank.championPoints || 0}</span></td>
-                        <td style={{ textAlign: 'center' }}><span style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--navy)' }}>{rank.totalPoints || 0}</span></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <div style={{ marginTop: 16, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '14px 18px', display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+
+            {/* Podium — top 3 */}
+            {rankings.length >= 1 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24, alignItems: 'flex-end' }}>
+                {([1, 0, 2] as const).map((rankIdx) => {
+                  if (!rankings[rankIdx]) return <div key={rankIdx} />;
+                  const rank = rankings[rankIdx];
+                  const pos = rankIdx + 1;
+                  const cfg = podiumConfig[rankIdx];
+                  const isMe = rank.id === user?.id;
+                  const prevPos = prevRankings[rank.id];
+                  const trend = prevPos !== undefined ? prevPos - pos : null;
+                  return (
+                    <div key={rank.id} style={{
+                      background: cfg.bg,
+                      border: `2px solid ${cfg.borderColor}`,
+                      borderRadius: 14,
+                      padding: rankIdx === 0 ? '28px 16px 22px' : '18px 12px 16px',
+                      textAlign: 'center',
+                      position: 'relative',
+                      boxShadow: rankIdx === 0 ? `0 8px 28px ${cfg.accent}28` : 'none',
+                    }}>
+                      {trend !== null && trend !== 0 && (
+                        <div style={{ position: 'absolute', top: 10, right: 10, fontSize: '0.7rem', fontWeight: 800, color: trend > 0 ? '#16a34a' : '#ef4444', background: trend > 0 ? '#dcfce7' : '#fee2e2', borderRadius: 6, padding: '2px 6px' }}>
+                          {trend > 0 ? `↑${trend}` : `↓${Math.abs(trend)}`}
+                        </div>
+                      )}
+                      <div style={{ fontSize: rankIdx === 0 ? '2.6rem' : '2rem', marginBottom: 8, lineHeight: 1 }}>{cfg.medalEmoji}</div>
+                      <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--navy)', marginBottom: 6, lineHeight: 1.3 }}>
+                        {rank.name}
+                        {isMe && <span style={{ display: 'inline-block', fontSize: '0.62rem', color: '#2563eb', fontWeight: 800, background: '#dbeafe', borderRadius: 4, padding: '1px 6px', marginTop: 4 }}>TÚ</span>}
+                      </div>
+                      <div style={{ fontWeight: 800, fontSize: rankIdx === 0 ? '2.6rem' : '2.1rem', color: cfg.accent, letterSpacing: '-0.05em', lineHeight: 1 }}>
+                        {rank.totalPoints || 0}
+                      </div>
+                      <div style={{ fontSize: '0.62rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>pts</div>
+                      {rank.championPrediction && (
+                        <div style={{ fontSize: '0.68rem', color: 'var(--muted)' }}>🏆 {rank.championPrediction}</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* 4th place onwards */}
+            {rankings.length > 3 && (
+              <div className="card" style={{ overflow: 'hidden', marginBottom: 16 }}>
+                <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left' }}>#</th>
+                      <th style={{ textAlign: 'left' }}>Jugador</th>
+                      <th style={{ textAlign: 'center' }}>Campeón</th>
+                      <th style={{ textAlign: 'center' }}>Paltas</th>
+                      <th style={{ textAlign: 'center' }}>Pts Partidos</th>
+                      <th style={{ textAlign: 'center' }}>Pts Campeón</th>
+                      <th style={{ textAlign: 'center' }}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rankings.slice(3).map((rank, idx) => {
+                      const i = idx + 3;
+                      const isMe = rank.id === user?.id;
+                      const prevPos = prevRankings[rank.id];
+                      const trend = prevPos !== undefined ? prevPos - (i + 1) : null;
+                      return (
+                        <tr key={rank.id} style={{ background: isMe ? '#eff6ff' : 'white' }}>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontWeight: 700, color: 'var(--muted)', fontSize: '0.875rem' }}>{i + 1}</span>
+                              {trend !== null && trend !== 0 && (
+                                <span style={{ fontSize: '0.68rem', fontWeight: 800, color: trend > 0 ? '#16a34a' : '#ef4444', background: trend > 0 ? '#dcfce7' : '#fee2e2', borderRadius: 4, padding: '1px 5px' }}>
+                                  {trend > 0 ? `↑${trend}` : `↓${Math.abs(trend)}`}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.9rem' }}>
+                              {rank.name}{isMe && <span style={{ fontSize: '0.7rem', color: '#2563eb', fontWeight: 700, background: '#eff6ff', padding: '1px 6px', borderRadius: 4, marginLeft: 6 }}>TÚ</span>}
+                            </div>
+                          </td>
+                          <td style={{ textAlign: 'center', fontSize: '0.8rem', color: 'var(--muted)' }}>{rank.championPrediction || '—'}</td>
+                          <td style={{ textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem' }}>{rank.totalPredictions || 0}</td>
+                          <td style={{ textAlign: 'center' }}><span style={{ fontWeight: 700, color: '#16a34a' }}>{rank.matchPoints || 0}</span></td>
+                          <td style={{ textAlign: 'center' }}><span style={{ fontWeight: 700, color: '#d97706' }}>{rank.championPoints || 0}</span></td>
+                          <td style={{ textAlign: 'center' }}><span style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--navy)' }}>{rank.totalPoints || 0}</span></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div style={{ marginTop: 4, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '14px 18px', display: 'flex', gap: 24, flexWrap: 'wrap' }}>
               <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🎯 <strong>Resultado exacto:</strong> 3 pts</div>
               <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>✅ <strong>Solo el ganador:</strong> 1 pt</div>
               <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🏆 <strong>La pegaste con el campeón:</strong> 10 pts bonus</div>
@@ -478,29 +576,30 @@ export default function Dashboard() {
                     (match.result1 === match.result2 && pred.prediction1 === pred.prediction2)
                   );
                   const pts = pred?.points || 0;
+                  const accentColor = isExact ? '#10b981' : isCorrect ? '#3b82f6' : pts === 0 && pred ? '#ef4444' : 'var(--border)';
                   return (
-                    <div key={match.id} className="card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16, borderLeft: `3px solid ${isExact ? '#10b981' : isCorrect ? '#3b82f6' : pts === 0 && pred ? '#ef4444' : 'var(--border)'}` }}>
+                    <div key={match.id} className="card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16, borderLeft: `3px solid ${accentColor}` }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}><span className="tag">{match.stage}</span></div>
                         <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--navy)' }}>{match.team1} vs {match.team2}</div>
                       </div>
-                      <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-end' }}>
                         <div style={{ textAlign: 'center' }}>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--muted)', fontWeight: 600, marginBottom: 2 }}>RESULTADO</div>
-                          <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--navy)' }}>{match.result1} – {match.result2}</div>
+                          <div style={{ fontSize: '0.6rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>Resultado</div>
+                          <div style={{ fontWeight: 800, fontSize: '2rem', color: 'var(--navy)', letterSpacing: '-0.05em', lineHeight: 1 }}>{match.result1} – {match.result2}</div>
                         </div>
                         <div style={{ textAlign: 'center' }}>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--muted)', fontWeight: 600, marginBottom: 2 }}>TU PALTA</div>
-                          <div style={{ fontWeight: 800, fontSize: '1.1rem', color: pred ? 'var(--navy)' : 'var(--muted)' }}>
+                          <div style={{ fontSize: '0.6rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>Tu palta</div>
+                          <div style={{ fontWeight: 800, fontSize: '2rem', color: pred ? 'var(--navy)' : 'var(--muted)', letterSpacing: '-0.05em', lineHeight: 1 }}>
                             {pred ? `${pred.prediction1} – ${pred.prediction2}` : '—'}
                           </div>
                         </div>
                       </div>
-                      <div style={{ textAlign: 'center', minWidth: 60 }}>
-                        <div style={{ fontWeight: 800, fontSize: '1.4rem', color: isExact ? '#10b981' : isCorrect ? '#3b82f6' : pts === 0 && pred ? '#ef4444' : 'var(--muted)' }}>
+                      <div style={{ textAlign: 'center', minWidth: 56 }}>
+                        <div style={{ fontWeight: 800, fontSize: '2.2rem', letterSpacing: '-0.05em', lineHeight: 1, color: isExact ? '#10b981' : isCorrect ? '#3b82f6' : pts === 0 && pred ? '#ef4444' : 'var(--muted)' }}>
                           {pts > 0 ? `+${pts}` : pred ? '0' : '—'}
                         </div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--muted)', fontWeight: 600 }}>pts</div>
+                        <div style={{ fontSize: '0.62rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>pts</div>
                       </div>
                     </div>
                   );
@@ -509,6 +608,7 @@ export default function Dashboard() {
             )}
           </div>
         )}
+
       </div>
     </div>
   );
