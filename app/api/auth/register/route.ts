@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initDb } from '@/lib/db';
-import { createUser, isUserAllowed, createToken, getUserByEmail } from '@/lib/auth';
+import { createUser, createToken, getUserByEmail } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,13 +12,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'Email, password, nombre y predicción de campeón son requeridos' },
         { status: 400 }
-      );
-    }
-
-    if (!isUserAllowed(email)) {
-      return NextResponse.json(
-        { error: 'Email no autorizado para registrarse' },
-        { status: 403 }
       );
     }
 
