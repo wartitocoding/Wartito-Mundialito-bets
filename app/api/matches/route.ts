@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initDb, getDatabase } from '@/lib/db';
 
-export async function GET(req: NextRequest) {
+export async function GET(_: NextRequest) {
   try {
     initDb();
     const db = getDatabase();

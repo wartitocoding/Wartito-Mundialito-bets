@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initDb, getDatabase } from '@/lib/db';
 
-export async function GET(req: NextRequest) {
+function getWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
+export async function GET(_: NextRequest) {
   try {
     initDb();
     const db = getDatabase();
 
-    const weekNumber = new Date().getWeek();
-    const year = new Date().getFullYear();
+    const now = new Date();
+    const weekNumber = getWeekNumber(now);
+    const year = now.getFullYear();
 
     const weeklyRanking = db
       .prepare(
