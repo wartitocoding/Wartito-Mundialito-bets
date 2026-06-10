@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initDb } from '@/lib/db';
 import { setWorldCupChampion, getWorldCupChampion, updateChampionPoints } from '@/lib/auth';
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     initDb();
     const champion = getWorldCupChampion(2026);
