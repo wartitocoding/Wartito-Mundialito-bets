@@ -26,7 +26,7 @@ export default function Login() {
       localStorage.setItem('token', data.token);
       router.push('/dashboard');
     } catch {
-      setError('Error al conectar con el servidor');
+      setError('No se pudo conectar, inténtalo de nuevo po.');
     } finally {
       setLoading(false);
     }
@@ -54,8 +54,8 @@ export default function Login() {
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
         <div style={{ width: '100%', maxWidth: 420 }}>
           <div style={{ marginBottom: 28 }}>
-            <h1 style={{ fontWeight: 800, fontSize: '1.6rem', letterSpacing: '-0.02em', margin: '0 0 6px', color: 'var(--navy)' }}>Iniciar sesión</h1>
-            <p style={{ color: 'var(--muted)', fontSize: '0.875rem', margin: 0 }}>Ingresá tus datos para continuar</p>
+            <h1 style={{ fontWeight: 800, fontSize: '1.6rem', letterSpacing: '-0.02em', margin: '0 0 6px', color: 'var(--navy)' }}>Entrar</h1>
+            <p style={{ color: 'var(--muted)', fontSize: '0.875rem', margin: 0 }}>Ingresa tus datos para continuar</p>
           </div>
 
           {error && (
@@ -76,14 +76,14 @@ export default function Login() {
               </div>
               <button type="submit" disabled={loading}
                 style={{ background: loading ? '#94a3b8' : 'var(--navy)', color: 'white', border: 'none', borderRadius: 8, padding: '11px', fontSize: '0.9rem', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', marginTop: 4, transition: 'background 0.2s' }}>
-                {loading ? 'Iniciando...' : 'Entrar'}
+                {loading ? 'Entrando...' : 'Entrar al tiro'}
               </button>
             </form>
           </div>
 
           <p style={{ textAlign: 'center', marginTop: 20, fontSize: '0.875rem', color: 'var(--muted)' }}>
-            ¿No tenés cuenta?{' '}
-            <Link href="/register" style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>Registrarse</Link>
+            ¿No tienes cuenta?{' '}
+            <Link href="/register" style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>Regístrate aquí</Link>
           </p>
         </div>
       </div>

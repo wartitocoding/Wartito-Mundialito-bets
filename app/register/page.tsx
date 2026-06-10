@@ -26,7 +26,7 @@ export default function Register() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    if (!championPrediction) { setError('Debés seleccionar al campeón predicho'); setLoading(false); return; }
+    if (!championPrediction) { setError('Tienes que elegir al campeón po, no te puedes quedar sin eso.'); setLoading(false); return; }
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
@@ -38,7 +38,7 @@ export default function Register() {
       localStorage.setItem('token', data.token);
       router.push('/dashboard');
     } catch {
-      setError('Error al conectar con el servidor');
+      setError('No se pudo conectar, inténtalo de nuevo po.');
     } finally {
       setLoading(false);
     }
@@ -67,7 +67,7 @@ export default function Register() {
         <div style={{ width: '100%', maxWidth: 460 }}>
           <div style={{ marginBottom: 28 }}>
             <h1 style={{ fontWeight: 800, fontSize: '1.6rem', letterSpacing: '-0.02em', margin: '0 0 6px', color: 'var(--navy)' }}>Crear cuenta</h1>
-            <p style={{ color: 'var(--muted)', fontSize: '0.875rem', margin: 0 }}>Completá el formulario para unirte al juego</p>
+            <p style={{ color: 'var(--muted)', fontSize: '0.875rem', margin: 0 }}>Llena el formulario y únete al juego, po</p>
           </div>
 
           {error && (
@@ -92,28 +92,28 @@ export default function Register() {
               </div>
 
               <div>
-                <label style={lbl}>¿Quién gana el Mundial 2026? 🏆</label>
+                <label style={lbl}>¿Quién se lleva el Mundial 2026? 🏆</label>
                 <select value={championPrediction} onChange={(e) => setChampionPrediction(e.target.value)} style={{ ...inp }} required>
-                  <option value="">Seleccioná un equipo...</option>
+                  <option value="">Selecciona un equipo...</option>
                   {TEAMS.sort().map((team) => (
                     <option key={team} value={team}>{team}</option>
                   ))}
                 </select>
                 <p style={{ fontSize: '0.78rem', color: 'var(--muted)', marginTop: 6, margin: '6px 0 0' }}>
-                  Acertás al campeón → +10 puntos bonus al final del torneo
+                  Si la pegas → +10 puntos bonus al final del torneo
                 </p>
               </div>
 
               <button type="submit" disabled={loading}
                 style={{ background: loading ? '#94a3b8' : 'var(--navy)', color: 'white', border: 'none', borderRadius: 8, padding: '11px', fontSize: '0.9rem', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', marginTop: 4 }}>
-                {loading ? 'Creando cuenta...' : 'Crear cuenta'}
+                {loading ? 'Creando cuenta...' : 'Registrarme al tiro'}
               </button>
             </form>
           </div>
 
           <p style={{ textAlign: 'center', marginTop: 20, fontSize: '0.875rem', color: 'var(--muted)' }}>
-            ¿Ya tenés cuenta?{' '}
-            <Link href="/login" style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>Iniciar sesión</Link>
+            ¿Ya tienes cuenta?{' '}
+            <Link href="/login" style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>Entra aquí</Link>
           </p>
         </div>
       </div>

@@ -93,7 +93,7 @@ export default function Dashboard() {
   const tabs = [
     { key: 'matches', label: 'Partidos', count: nextMatches.length },
     { key: 'ranking', label: 'Ranking', count: rankings.length },
-    { key: 'my-predictions', label: 'Mis Apuestas', count: finishedMatches.length },
+    { key: 'my-predictions', label: 'Mis Paltas', count: finishedMatches.length },
   ] as const;
 
   return (
@@ -144,12 +144,12 @@ export default function Dashboard() {
         {activeTab === 'matches' && (
           <div>
             <div style={{ marginBottom: 20 }}>
-              <h2 style={{ fontWeight: 800, fontSize: '1.3rem', color: 'var(--navy)', margin: 0, letterSpacing: '-0.02em' }}>Próximos partidos</h2>
+              <h2 style={{ fontWeight: 800, fontSize: '1.3rem', color: 'var(--navy)', margin: 0, letterSpacing: '-0.02em' }}>Próximos partidos po</h2>
             </div>
             {nextMatches.length === 0 ? (
               <div className="card" style={{ padding: 40, textAlign: 'center' }}>
                 <div style={{ fontSize: 32, marginBottom: 12 }}>📭</div>
-                <p style={{ color: 'var(--muted)', margin: 0 }}>No hay partidos próximos cargados</p>
+                <p style={{ color: 'var(--muted)', margin: 0 }}>Aún no hay partidos cargados, espera un poco po</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -172,17 +172,17 @@ export default function Dashboard() {
                       {pred ? (
                         <div style={{ textAlign: 'center', padding: '6px 14px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8 }}>
                           <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#166534' }}>{pred.prediction1} – {pred.prediction2}</div>
-                          <div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 600 }}>Tu apuesta</div>
+                          <div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 600 }}>Tu palta</div>
                         </div>
                       ) : (
                         <div style={{ textAlign: 'center', padding: '6px 14px', background: '#fafafa', border: '1px solid var(--border)', borderRadius: 8, minWidth: 80 }}>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>Sin apuesta</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>Sin palta aún</div>
                         </div>
                       )}
 
                       <Link href={`/predict/${match.id}`}
                         style={{ background: 'var(--navy)', color: 'white', padding: '8px 16px', borderRadius: 8, fontSize: '0.8rem', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                        {pred ? 'Editar' : 'Apostar'}
+                        {pred ? 'Cambiar palta' : 'Paltar'}
                       </Link>
                     </div>
                   );
@@ -196,7 +196,7 @@ export default function Dashboard() {
         {activeTab === 'ranking' && (
           <div>
             <div style={{ marginBottom: 20 }}>
-              <h2 style={{ fontWeight: 800, fontSize: '1.3rem', color: 'var(--navy)', margin: 0, letterSpacing: '-0.02em' }}>Tabla de posiciones</h2>
+              <h2 style={{ fontWeight: 800, fontSize: '1.3rem', color: 'var(--navy)', margin: 0, letterSpacing: '-0.02em' }}>¿Quién va ganando po?</h2>
             </div>
             <div className="card" style={{ overflow: 'hidden' }}>
               <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -204,8 +204,8 @@ export default function Dashboard() {
                   <tr>
                     <th style={{ textAlign: 'left' }}>#</th>
                     <th style={{ textAlign: 'left' }}>Jugador</th>
-                    <th style={{ textAlign: 'center' }}>Campeón</th>
-                    <th style={{ textAlign: 'center' }}>Partidos</th>
+                    <th style={{ textAlign: 'center' }}>Campeón elegido</th>
+                    <th style={{ textAlign: 'center' }}>Paltas</th>
                     <th style={{ textAlign: 'center' }}>Pts Partidos</th>
                     <th style={{ textAlign: 'center' }}>Pts Campeón</th>
                     <th style={{ textAlign: 'center' }}>Total</th>
@@ -245,9 +245,9 @@ export default function Dashboard() {
             </div>
 
             <div style={{ marginTop: 16, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '14px 18px', display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-              <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🎯 <strong>Exacto:</strong> 3 pts</div>
-              <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>✅ <strong>Solo ganador:</strong> 1 pt</div>
-              <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🏆 <strong>Campeón correcto:</strong> 10 pts bonus</div>
+              <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🎯 <strong>Resultado exacto:</strong> 3 pts</div>
+              <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>✅ <strong>Solo el ganador:</strong> 1 pt</div>
+              <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🏆 <strong>La pegaste con el campeón:</strong> 10 pts bonus</div>
             </div>
           </div>
         )}
@@ -256,12 +256,12 @@ export default function Dashboard() {
         {activeTab === 'my-predictions' && (
           <div>
             <div style={{ marginBottom: 20 }}>
-              <h2 style={{ fontWeight: 800, fontSize: '1.3rem', color: 'var(--navy)', margin: 0, letterSpacing: '-0.02em' }}>Mis apuestas</h2>
+              <h2 style={{ fontWeight: 800, fontSize: '1.3rem', color: 'var(--navy)', margin: 0, letterSpacing: '-0.02em' }}>Mis paltas</h2>
             </div>
             {finishedMatches.length === 0 ? (
               <div className="card" style={{ padding: 40, textAlign: 'center' }}>
                 <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
-                <p style={{ color: 'var(--muted)', margin: 0 }}>Todavía no se jugó ningún partido</p>
+                <p style={{ color: 'var(--muted)', margin: 0 }}>Todavía no se ha jugado nada, espera que arranque el mundial po</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -290,7 +290,7 @@ export default function Dashboard() {
                           <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--navy)' }}>{match.result1} – {match.result2}</div>
                         </div>
                         <div style={{ textAlign: 'center' }}>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--muted)', fontWeight: 600, marginBottom: 2 }}>TU APUESTA</div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--muted)', fontWeight: 600, marginBottom: 2 }}>TU PALTA</div>
                           <div style={{ fontWeight: 800, fontSize: '1.1rem', color: pred ? 'var(--navy)' : 'var(--muted)' }}>
                             {pred ? `${pred.prediction1} – ${pred.prediction2}` : '—'}
                           </div>

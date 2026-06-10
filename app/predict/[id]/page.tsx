@@ -59,7 +59,7 @@ export default function PredictPage() {
       if (!res.ok) { setError(data.error || 'Error al guardar'); return; }
       router.push('/dashboard');
     } catch {
-      setError('Error al conectar con el servidor');
+      setError('No se pudo conectar, inténtalo de nuevo po.');
     } finally {
       setSubmitting(false);
     }
@@ -113,7 +113,7 @@ export default function PredictPage() {
 
         <div className="card" style={{ padding: '32px 28px' }}>
           <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem', fontWeight: 600, marginBottom: 24, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            ¿Cuál será el resultado?
+            ¿Cómo te la jugai? Elige el resultado
           </p>
 
           <form onSubmit={handleSubmit}>
@@ -143,11 +143,11 @@ export default function PredictPage() {
             <div style={{ display: 'flex', gap: 12 }}>
               <button type="submit" disabled={submitting}
                 style={{ flex: 1, background: submitting ? '#94a3b8' : 'var(--navy)', color: 'white', border: 'none', borderRadius: 8, padding: '12px', fontSize: '0.9rem', fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-                {submitting ? 'Guardando...' : 'Confirmar apuesta'}
+                {submitting ? 'Guardando...' : '¡Paltar al tiro!'}
               </button>
               <Link href="/dashboard"
                 style={{ flex: 1, background: 'var(--surface)', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px', fontSize: '0.9rem', fontWeight: 600, textDecoration: 'none', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                Cancelar
+                Me rajé
               </Link>
             </div>
           </form>

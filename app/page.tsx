@@ -47,18 +47,18 @@ export default function Home() {
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '64px 24px 0' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.2)', borderRadius: 999, padding: '4px 14px', marginBottom: 24 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399', display: 'inline-block' }}></span>
-            <span style={{ color: '#93c5fd', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Mundial 2026 · USA / Canada / México</span>
+            <span style={{ color: '#93c5fd', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Mundial 2026 · USA / Canadá / México</span>
           </div>
           <h1 style={{ color: 'white', fontSize: 'clamp(2rem, 5vw, 3rem)', fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.03em', margin: '0 0 18px' }}>
             Predicciones del<br /><span style={{ color: '#60a5fa' }}>Mundial 2026</span>
           </h1>
           <p style={{ color: '#94a3b8', fontSize: '1.05rem', maxWidth: 500, lineHeight: 1.7, margin: '0 0 32px' }}>
-            Apostá resultados partido a partido, elegí al campeón y competí contra tus amigos en el ranking general.
+            Predice los resultados partido a partido, elige al campeón y compite contra tus amigos en el ranking. ¡La raja po!
           </p>
           {!isLoggedIn ? (
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <Link href="/register" style={{ background: '#2563eb', color: 'white', padding: '11px 26px', borderRadius: 10, fontWeight: 700, fontSize: '0.95rem', textDecoration: 'none' }}>
-                Empezar ahora →
+                Partir al tiro →
               </Link>
               <Link href="/login" style={{ background: 'rgba(255,255,255,0.07)', color: '#e2e8f0', padding: '11px 26px', borderRadius: 10, fontWeight: 600, fontSize: '0.95rem', textDecoration: 'none', border: '1px solid rgba(255,255,255,0.1)' }}>
                 Ya tengo cuenta
@@ -66,7 +66,7 @@ export default function Home() {
             </div>
           ) : (
             <Link href="/dashboard" style={{ background: '#2563eb', color: 'white', padding: '11px 26px', borderRadius: 10, fontWeight: 700, fontSize: '0.95rem', textDecoration: 'none', display: 'inline-block' }}>
-              Ir al Dashboard →
+              Ver mis apuestas →
             </Link>
           )}
         </div>
@@ -87,14 +87,14 @@ export default function Home() {
       {/* Features */}
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '60px 24px' }}>
         <div style={{ marginBottom: 36 }}>
-          <span className="tag" style={{ marginBottom: 12, display: 'inline-block' }}>Cómo funciona</span>
-          <h2 style={{ fontWeight: 800, fontSize: '1.7rem', letterSpacing: '-0.02em', margin: 0, color: 'var(--navy)' }}>Tres pasos para competir</h2>
+          <span className="tag" style={{ marginBottom: 12, display: 'inline-block' }}>¿Cómo funciona?</span>
+          <h2 style={{ fontWeight: 800, fontSize: '1.7rem', letterSpacing: '-0.02em', margin: 0, color: 'var(--navy)' }}>Tres pasos pa competir</h2>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
           {[
-            { n: '01', icon: '🎯', title: 'Predecí resultados', desc: 'Antes de cada partido, ingresá el marcador que creés que va a terminar.' },
-            { n: '02', icon: '🏆', title: 'Elegí al campeón', desc: 'Al registrarte elegís el campeón del mundo. Si acertás sumás 10 puntos extra al final.' },
-            { n: '03', icon: '📊', title: 'Seguí el ranking', desc: 'El ranking se actualiza en tiempo real. Mirá quién lidera y cuánto te falta para alcanzarlo.' },
+            { n: '01', icon: '🎯', title: 'Predice los resultados', desc: 'Antes de cada partido, ingresa el marcador que crees que va a quedar. ¿Cachai el fútbol? Demuéstralo.' },
+            { n: '02', icon: '🏆', title: 'Elige al campeón', desc: 'Al registrarte eliges quién gana el Mundial. Si la pegas, te llevas 10 puntos extra al final.' },
+            { n: '03', icon: '📊', title: 'Sigue el ranking', desc: 'El ranking se actualiza en tiempo real. Mira quién va primero y cuánto te falta para bajarlo.' },
           ].map((f) => (
             <div key={f.n} className="card" style={{ padding: '28px 24px' }}>
               <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#2563eb', letterSpacing: '0.08em', marginBottom: 16, background: '#eff6ff', display: 'inline-block', padding: '3px 10px', borderRadius: 6 }}>{f.n}</div>
@@ -108,7 +108,7 @@ export default function Home() {
 
       {/* Footer */}
       <div style={{ borderTop: '1px solid var(--border)', padding: '24px', textAlign: 'center', background: 'white' }}>
-        <p style={{ color: 'var(--muted)', fontSize: '0.8rem', margin: 0 }}>Wartito Mundialito Bets 2026 · Solo para uso privado entre amigos</p>
+        <p style={{ color: 'var(--muted)', fontSize: '0.8rem', margin: 0 }}>Wartito Mundialito Bets 2026 · Solo pa los amigos del barrio</p>
       </div>
     </div>
   );
