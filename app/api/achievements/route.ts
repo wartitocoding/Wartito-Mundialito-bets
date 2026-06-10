@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initDb, getDatabase } from '@/lib/db';
+import { initDb } from '@/lib/db';
 import { getUserAchievements, checkAndAwardAchievements, ACHIEVEMENT_INFO } from '@/lib/achievements';
 import { verifyAuth } from '@/lib/middleware';
 
