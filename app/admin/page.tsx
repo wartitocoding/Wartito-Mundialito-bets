@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 interface AdminStats {
@@ -14,7 +13,6 @@ interface AdminStats {
 }
 
 export default function AdminPage() {
-  const router = useRouter();
   const [adminToken, setAdminToken] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [stats, setStats] = useState<AdminStats | null>(null);
