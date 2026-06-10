@@ -92,7 +92,7 @@ export default function Home() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, marginBottom: 32 }}>
           {[
-            { n: '01', icon: '🎯', title: 'Predice los resultados', desc: 'Antes de cada partido, ingresa el marcador que crees que va a quedar. ¿Cachai el fútbol? Demuéstralo.' },
+            { n: '01', icon: '🎯', title: 'Predice los resultados', desc: 'Antes de cada partido, ingresa el marcador que crees que va a quedar. Una vez que el partido empieza, tu apuesta queda bloqueada.' },
             { n: '02', icon: '🏆', title: 'Elige al campeón', desc: 'Al registrarte eliges quién gana el Mundial. Si la pegas, te llevas 10 puntos extra al final.' },
             { n: '03', icon: '📊', title: 'Sigue el ranking', desc: 'El ranking se actualiza en tiempo real. Mira quién va primero y cuánto te falta para bajarlo.' },
           ].map((f) => (
@@ -128,9 +128,12 @@ export default function Home() {
               </div>
             ))}
           </div>
-          <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.72rem', margin: '16px 0 0', textAlign: 'center' }}>
-            Resultado incorrecto → 0 puntos
-          </p>
+          <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.72rem', margin: 0 }}>Resultado incorrecto → 0 puntos</p>
+            <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem', margin: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
+              🔒 Las apuestas se bloquean al inicio de cada partido
+            </p>
+          </div>
         </div>
       </div>
 

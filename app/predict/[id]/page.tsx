@@ -70,6 +70,20 @@ export default function PredictPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!Number.isInteger(prediction1) || !Number.isInteger(prediction2)) {
+      setError('Los marcadores deben ser números enteros.');
+      return;
+    }
+    if (prediction1 < 0 || prediction2 < 0) {
+      setError('Los marcadores no pueden ser negativos.');
+      return;
+    }
+    if (prediction1 > 20 || prediction2 > 20) {
+      setError('El marcador máximo permitido es 20 por equipo.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const token = localStorage.getItem('token');
@@ -191,11 +205,11 @@ export default function PredictPage() {
               </p>
 
               <form onSubmit={handleSubmit}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
                   <div style={{ flex: 1, textAlign: 'center' }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--muted)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{match.team1}</div>
-                    <input type="number" min="0" max="20" value={prediction1}
-                      onChange={(e) => setPrediction1(parseInt(e.target.value) || 0)}
+                    <input type="number" min="0" max="20" step="1" value={prediction1}
+                      onChange={(e) => setPrediction1(Math.max(0, Math.min(20, parseInt(e.target.value) || 0)))}
                       style={numInput} />
                   </div>
 
@@ -203,10 +217,23 @@ export default function PredictPage() {
 
                   <div style={{ flex: 1, textAlign: 'center' }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--muted)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{match.team2}</div>
-                    <input type="number" min="0" max="20" value={prediction2}
-                      onChange={(e) => setPrediction2(parseInt(e.target.value) || 0)}
+                    <input type="number" min="0" max="20" step="1" value={prediction2}
+                      onChange={(e) => setPrediction2(Math.max(0, Math.min(20, parseInt(e.target.value) || 0)))}
                       style={numInput} />
                   </div>
+                </div>
+
+                {/* Outcome indicator */}
+                <div style={{
+                  textAlign: 'center', marginBottom: 20, padding: '8px 16px', borderRadius: 8,
+                  background: prediction1 === prediction2 ? '#f0fdf4' : '#eff6ff',
+                  border: `1px solid ${prediction1 === prediction2 ? '#86efac' : '#bfdbfe'}`,
+                  fontSize: '0.85rem', fontWeight: 600,
+                  color: prediction1 === prediction2 ? '#166534' : '#1e40af',
+                }}>
+                  {prediction1 > prediction2 && `Apostando que gana ${match.team1}`}
+                  {prediction2 > prediction1 && `Apostando que gana ${match.team2}`}
+                  {prediction1 === prediction2 && '🤝 Apostando por empate — vale 2 pts si aciertas'}
                 </div>
 
                 <div style={{ background: 'var(--surface)', borderRadius: 8, padding: '12px 16px', marginBottom: 24, display: 'flex', justifyContent: 'center', gap: 20, flexWrap: 'wrap' }}>
