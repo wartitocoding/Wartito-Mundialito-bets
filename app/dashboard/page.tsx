@@ -546,10 +546,11 @@ export default function Dashboard() {
               </div>
             )}
 
-            <div style={{ marginTop: 4, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '14px 18px', display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-              <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🎯 <strong>Resultado exacto:</strong> 3 pts</div>
-              <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>✅ <strong>Solo el ganador:</strong> 1 pt</div>
-              <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🏆 <strong>La pegaste con el campeón:</strong> 10 pts bonus</div>
+            <div style={{ marginTop: 4, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '14px 18px', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+              <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🎯 <strong>Marcador exacto:</strong> 3 pts</div>
+              <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🤝 <strong>Empate acertado:</strong> 2 pts</div>
+              <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>✅ <strong>Ganador acertado:</strong> 1 pt</div>
+              <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🏆 <strong>Campeón del mundial:</strong> +10 pts bonus</div>
             </div>
           </div>
         )}

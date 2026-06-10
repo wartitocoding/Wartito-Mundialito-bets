@@ -135,9 +135,10 @@ export default function PredictPage() {
               </div>
             </div>
 
-            <div style={{ background: 'var(--surface)', borderRadius: 8, padding: '12px 16px', marginBottom: 24, display: 'flex', justifyContent: 'center', gap: 24 }}>
+            <div style={{ background: 'var(--surface)', borderRadius: 8, padding: '12px 16px', marginBottom: 24, display: 'flex', justifyContent: 'center', gap: 20, flexWrap: 'wrap' }}>
               <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>🎯 Exacto: <strong style={{ color: 'var(--navy)' }}>+3 pts</strong></span>
-              <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>✅ Solo ganador: <strong style={{ color: 'var(--navy)' }}>+1 pt</strong></span>
+              <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>🤝 Empate acertado: <strong style={{ color: 'var(--navy)' }}>+2 pts</strong></span>
+              <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>✅ Ganador acertado: <strong style={{ color: 'var(--navy)' }}>+1 pt</strong></span>
             </div>
 
             <div style={{ display: 'flex', gap: 12 }}>

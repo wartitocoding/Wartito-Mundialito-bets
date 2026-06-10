@@ -90,7 +90,7 @@ export default function Home() {
           <span className="tag" style={{ marginBottom: 12, display: 'inline-block' }}>¿Cómo funciona?</span>
           <h2 style={{ fontWeight: 800, fontSize: '1.7rem', letterSpacing: '-0.02em', margin: 0, color: 'var(--navy)' }}>Tres pasos pa competir</h2>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, marginBottom: 32 }}>
           {[
             { n: '01', icon: '🎯', title: 'Predice los resultados', desc: 'Antes de cada partido, ingresa el marcador que crees que va a quedar. ¿Cachai el fútbol? Demuéstralo.' },
             { n: '02', icon: '🏆', title: 'Elige al campeón', desc: 'Al registrarte eliges quién gana el Mundial. Si la pegas, te llevas 10 puntos extra al final.' },
@@ -103,6 +103,34 @@ export default function Home() {
               <p style={{ color: 'var(--muted)', fontSize: '0.875rem', lineHeight: 1.65, margin: 0 }}>{f.desc}</p>
             </div>
           ))}
+        </div>
+
+        {/* Scoring table */}
+        <div style={{ background: 'var(--navy)', borderRadius: 16, padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+          <div style={{ marginBottom: 20 }}>
+            <span style={{ color: '#93c5fd', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Sistema de puntos</span>
+            <h3 style={{ color: 'white', fontWeight: 800, fontSize: '1.1rem', margin: '4px 0 0', letterSpacing: '-0.02em' }}>¿Cómo se ganan los puntos?</h3>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+            {[
+              { icon: '🎯', label: 'Marcador exacto', sub: 'Ej: predijiste 2–1 y quedó 2–1', pts: 3, color: '#fbbf24' },
+              { icon: '🤝', label: 'Empate acertado', sub: 'Predijiste empate y fue empate', pts: 2, color: '#34d399' },
+              { icon: '✅', label: 'Ganador acertado', sub: 'Acertaste quién gana, no el marcador', pts: 1, color: '#60a5fa' },
+              { icon: '🏆', label: 'Campeón del mundial', sub: 'Bonus al final del torneo', pts: '+10', color: '#f472b6' },
+            ].map((s) => (
+              <div key={s.label} style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: '16px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: '1.4rem', flexShrink: 0 }}>{s.icon}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ color: 'white', fontWeight: 700, fontSize: '0.82rem', marginBottom: 2 }}>{s.label}</div>
+                  <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.72rem', lineHeight: 1.4 }}>{s.sub}</div>
+                </div>
+                <div style={{ color: s.color, fontWeight: 800, fontSize: '1.4rem', letterSpacing: '-0.04em', flexShrink: 0 }}>{s.pts}</div>
+              </div>
+            ))}
+          </div>
+          <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.72rem', margin: '16px 0 0', textAlign: 'center' }}>
+            Resultado incorrecto → 0 puntos
+          </p>
         </div>
       </div>
 

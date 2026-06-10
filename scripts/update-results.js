@@ -114,18 +114,24 @@ function calculatePointsForMatch(db, externalId, actualGoals1, actualGoals2) {
     for (const prediction of predictions) {
       let points = 0;
 
-      // Puntuación exacta: 3 puntos
+      // Marcador exacto: 3 puntos
       if (
         prediction.prediction1 === actualGoals1 &&
         prediction.prediction2 === actualGoals2
       ) {
         points = 3;
       }
+      // Empate acertado (no exacto): 2 puntos
+      else if (
+        actualGoals1 === actualGoals2 &&
+        prediction.prediction1 === prediction.prediction2
+      ) {
+        points = 2;
+      }
       // Ganador correcto: 1 punto
       else if (
         (actualGoals1 > actualGoals2 && prediction.prediction1 > prediction.prediction2) ||
-        (actualGoals1 < actualGoals2 && prediction.prediction1 < prediction.prediction2) ||
-        (actualGoals1 === actualGoals2 && prediction.prediction1 === prediction.prediction2)
+        (actualGoals1 < actualGoals2 && prediction.prediction1 < prediction.prediction2)
       ) {
         points = 1;
       }
