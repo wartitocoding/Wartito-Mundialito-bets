@@ -61,6 +61,20 @@ function getWeekBounds() {
   return { monday, sunday };
 }
 
+function getNextWeeksBounds(numWeeks: number) {
+  const { monday: firstMonday } = getWeekBounds();
+  const weeks: { weekNum: number; label: string; monday: Date; sunday: Date }[] = [];
+  for (let i = 0; i < numWeeks; i++) {
+    const m = new Date(firstMonday);
+    m.setDate(firstMonday.getDate() + i * 7);
+    const s = new Date(m);
+    s.setDate(m.getDate() + 6);
+    s.setHours(23, 59, 59, 999);
+    weeks.push({ weekNum: i + 1, label: `Semana ${i + 1}`, monday: m, sunday: s });
+  }
+  return weeks;
+}
+
 function formatDayHeader(date: Date) {
   return date.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
 }
@@ -151,29 +165,41 @@ export default function Dashboard() {
   }
 
   const now = new Date();
-  const { monday, sunday } = getWeekBounds();
+  const weeks = getNextWeeksBounds(3);
+  const horizonStart = weeks[0].monday;
+  const horizonEnd = weeks[weeks.length - 1].sunday;
 
   const nextMatches = matches.filter((m) => new Date(m.date) > now);
   const finishedMatches = matches.filter((m) => m.result1 !== null);
 
-  const weekMatches = matches.filter((m) => {
+  const horizonMatches = matches.filter((m) => {
     const d = new Date(m.date);
-    return d >= monday && d <= sunday;
+    return d >= horizonStart && d <= horizonEnd;
   }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  const weekDays: { date: Date; matches: Match[] }[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    const dayMatches = weekMatches.filter(m => isSameDay(new Date(m.date), d));
-    weekDays.push({ date: d, matches: dayMatches });
-  }
+  const weeksWithDays = weeks.map(w => {
+    const wkMatches = horizonMatches.filter(m => {
+      const d = new Date(m.date);
+      return d >= w.monday && d <= w.sunday;
+    });
+    const days: { date: Date; matches: Match[] }[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(w.monday);
+      d.setDate(w.monday.getDate() + i);
+      const dayMatches = wkMatches.filter(m => isSameDay(new Date(m.date), d));
+      days.push({ date: d, matches: dayMatches });
+    }
+    const pendingCount = wkMatches.filter(m => new Date(m.date) > now && !predictions.find(p => p.matchId === m.id)).length;
+    return { ...w, matches: wkMatches, days, pendingCount };
+  });
 
-  const weekMatchCount = weekMatches.filter(m => new Date(m.date) > now).length;
+  const horizonPendingCount = horizonMatches.filter(m =>
+    new Date(m.date) > now && !predictions.find(p => p.matchId === m.id)
+  ).length;
   const myRankPos = rankings.findIndex(r => r.id === user?.id) + 1;
 
   const tabs = [
-    { key: 'calendar' as const, label: '📅 Semana', count: weekMatchCount },
+    { key: 'calendar' as const, label: '📅 Próximas 3 semanas', count: horizonPendingCount },
     { key: 'matches' as const, label: 'Partidos', count: nextMatches.length },
     { key: 'ranking' as const, label: 'Ranking', count: rankings.length },
     { key: 'my-predictions' as const, label: 'Mis Apuestas', count: finishedMatches.length },
@@ -258,14 +284,16 @@ export default function Dashboard() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
               <div>
                 <h2 style={{ fontWeight: 800, fontSize: '1.3rem', color: 'var(--navy)', margin: '0 0 4px', letterSpacing: '-0.02em' }}>
-                  Semana del {monday.toLocaleDateString('es-CL', { day: 'numeric', month: 'long' })} al {sunday.toLocaleDateString('es-CL', { day: 'numeric', month: 'long' })}
+                  Próximas 3 semanas
                 </h2>
                 <p style={{ color: 'var(--muted)', fontSize: '0.85rem', margin: 0 }}>
-                  {weekMatchCount > 0
-                    ? `${weekMatchCount} partido${weekMatchCount !== 1 ? 's' : ''} pendiente${weekMatchCount !== 1 ? 's' : ''} sin apostar esta semana`
-                    : weekMatches.length > 0
-                      ? 'Ya están todos los partidos de la semana jugados'
-                      : 'Sin partidos programados esta semana'}
+                  Del {horizonStart.toLocaleDateString('es-CL', { day: 'numeric', month: 'long' })} al {horizonEnd.toLocaleDateString('es-CL', { day: 'numeric', month: 'long' })}
+                  {' · '}
+                  {horizonPendingCount > 0
+                    ? `${horizonPendingCount} partido${horizonPendingCount !== 1 ? 's' : ''} sin apostar`
+                    : horizonMatches.length > 0
+                      ? 'Estás al día con tus apuestas'
+                      : 'Sin partidos programados'}
                 </p>
               </div>
               <div style={{ display: 'flex', gap: 12, fontSize: '0.78rem', fontWeight: 600 }}>
@@ -284,30 +312,59 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {weekDays.map(({ date, matches: dayMatches }) => {
-                const isToday = isSameDay(date, now);
-                if (dayMatches.length === 0) return null;
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+              {weeksWithDays.map((week) => {
+                if (week.matches.length === 0) return null;
+                const isCurrentWeek = week.monday <= now && now <= week.sunday;
                 return (
-                  <div key={date.toISOString()}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                  <section key={week.weekNum}>
+                    {/* Header de la semana */}
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14,
+                      paddingBottom: 10, borderBottom: '2px solid var(--border)',
+                    }}>
                       <div style={{
-                        background: isToday ? 'var(--navy)' : 'var(--surface)',
-                        color: isToday ? 'white' : 'var(--muted)',
-                        border: `1px solid ${isToday ? 'var(--navy)' : 'var(--border)'}`,
-                        borderRadius: 8, padding: '4px 12px',
-                        fontSize: '0.8rem', fontWeight: 700, textTransform: 'capitalize',
+                        background: isCurrentWeek ? 'var(--navy)' : '#e2e8f0',
+                        color: isCurrentWeek ? 'white' : 'var(--muted)',
+                        borderRadius: 8, padding: '6px 14px',
+                        fontWeight: 800, fontSize: '0.875rem', textTransform: 'uppercase', letterSpacing: '0.04em',
                       }}>
-                        {isToday ? '📍 Hoy — ' : ''}{formatDayHeader(date)}
+                        {week.label}{isCurrentWeek ? ' · Actual' : ''}
                       </div>
-                      <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                      <span style={{ fontSize: '0.75rem', color: 'var(--muted)', fontWeight: 600 }}>
-                        {dayMatches.length} partido{dayMatches.length !== 1 ? 's' : ''}
+                      <div style={{ fontSize: '0.85rem', color: 'var(--muted)', fontWeight: 600, textTransform: 'capitalize' }}>
+                        {week.monday.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })} — {week.sunday.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
+                      </div>
+                      <div style={{ flex: 1 }} />
+                      <span style={{ fontSize: '0.78rem', color: 'var(--muted)', fontWeight: 600 }}>
+                        {week.matches.length} partido{week.matches.length !== 1 ? 's' : ''}
+                        {week.pendingCount > 0 && <span style={{ color: '#dc2626', marginLeft: 8 }}>· {week.pendingCount} sin apostar</span>}
                       </span>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 10 }}>
-                      {dayMatches.map((match) => {
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                      {week.days.map(({ date, matches: dayMatches }) => {
+                        const isToday = isSameDay(date, now);
+                        if (dayMatches.length === 0) return null;
+                        return (
+                          <div key={date.toISOString()}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                              <div style={{
+                                background: isToday ? 'var(--navy)' : 'var(--surface)',
+                                color: isToday ? 'white' : 'var(--muted)',
+                                border: `1px solid ${isToday ? 'var(--navy)' : 'var(--border)'}`,
+                                borderRadius: 8, padding: '4px 12px',
+                                fontSize: '0.8rem', fontWeight: 700, textTransform: 'capitalize',
+                              }}>
+                                {isToday ? '📍 Hoy — ' : ''}{formatDayHeader(date)}
+                              </div>
+                              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                              <span style={{ fontSize: '0.75rem', color: 'var(--muted)', fontWeight: 600 }}>
+                                {dayMatches.length} partido{dayMatches.length !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 10 }}>
+                              {dayMatches.map((match) => {
                         const pred = predictions.find(p => p.matchId === match.id);
                         const isPlayed = match.result1 !== null;
                         const isPast = new Date(match.date) < now;
@@ -383,16 +440,20 @@ export default function Dashboard() {
                             </div>
                           </div>
                         );
+                              })}
+                            </div>
+                          </div>
+                        );
                       })}
                     </div>
-                  </div>
+                  </section>
                 );
               })}
 
-              {weekMatches.length === 0 && (
+              {horizonMatches.length === 0 && (
                 <div className="card" style={{ padding: 48, textAlign: 'center' }}>
                   <div style={{ fontSize: 40, marginBottom: 12 }}>📅</div>
-                  <p style={{ fontWeight: 700, color: 'var(--navy)', margin: '0 0 6px' }}>Sin partidos esta semana</p>
+                  <p style={{ fontWeight: 700, color: 'var(--navy)', margin: '0 0 6px' }}>Sin partidos en las próximas 3 semanas</p>
                   <p style={{ color: 'var(--muted)', fontSize: '0.875rem', margin: 0 }}>El admin tiene que cargar los partidos, espérate un cachito</p>
                 </div>
               )}
