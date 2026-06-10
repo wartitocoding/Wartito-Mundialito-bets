@@ -13,6 +13,7 @@
     "add-user": "node scripts/add-user.js",
     "add-match": "node scripts/add-match.js",
     "sync-matches": "node scripts/sync-matches.js",
+    "load-fixtures": "node scripts/load-wc2026-fixtures.js",
     "update-results": "node scripts/update-results.js",
     "set-champion": "node scripts/set-champion.js"
   },
