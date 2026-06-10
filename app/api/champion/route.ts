@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initDb, getDatabase } from '@/lib/db';
+import { initDb } from '@/lib/db';
 import { setWorldCupChampion, getWorldCupChampion, updateChampionPoints } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
