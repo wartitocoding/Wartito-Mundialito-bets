@@ -3,7 +3,7 @@ import { initDb, getDatabase } from '@/lib/db';
 import { verifyAuth } from '@/lib/middleware';
 
 export async function GET(
-  req: NextRequest,
+  _: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
