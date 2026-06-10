@@ -26,114 +26,96 @@ export default function Register() {
     e.preventDefault();
     setError('');
     setLoading(true);
-
-    if (!championPrediction) {
-      setError('Debes seleccionar al campeón predicho');
-      setLoading(false);
-      return;
-    }
-
+    if (!championPrediction) { setError('Debés seleccionar al campeón predicho'); setLoading(false); return; }
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, name, championPrediction }),
       });
-
       const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || 'Error en el registro');
-        return;
-      }
-
+      if (!res.ok) { setError(data.error || 'Error en el registro'); return; }
       localStorage.setItem('token', data.token);
       router.push('/dashboard');
-    } catch (err) {
+    } catch {
       setError('Error al conectar con el servidor');
     } finally {
       setLoading(false);
     }
   };
 
+  const inp: React.CSSProperties = {
+    width: '100%', padding: '10px 14px', border: '1px solid var(--border)',
+    borderRadius: 8, fontSize: '0.9rem', outline: 'none', background: 'white',
+    boxSizing: 'border-box', fontFamily: 'inherit', color: 'var(--text)',
+  };
+  const lbl: React.CSSProperties = {
+    display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--muted)',
+    marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em',
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
-        <h1 className="text-3xl font-bold mb-6 text-center text-blue-600">Registro</h1>
+    <div style={{ minHeight: '100vh', background: 'var(--surface)', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ background: 'var(--navy)', height: 56, display: 'flex', alignItems: 'center', padding: '0 24px' }}>
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+          <span style={{ fontSize: 18 }}>⚽</span>
+          <span style={{ color: 'white', fontWeight: 800, fontSize: '0.95rem' }}>Mundialito <span style={{ color: '#60a5fa' }}>Bets</span></span>
+        </Link>
+      </div>
 
-        {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2">Nombre</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-600"
-              required
-            />
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
+        <div style={{ width: '100%', maxWidth: 460 }}>
+          <div style={{ marginBottom: 28 }}>
+            <h1 style={{ fontWeight: 800, fontSize: '1.6rem', letterSpacing: '-0.02em', margin: '0 0 6px', color: 'var(--navy)' }}>Crear cuenta</h1>
+            <p style={{ color: 'var(--muted)', fontSize: '0.875rem', margin: 0 }}>Completá el formulario para unirte al juego</p>
           </div>
 
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-600"
-              required
-            />
+          {error && (
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '12px 16px', marginBottom: 20, color: '#dc2626', fontSize: '0.875rem', fontWeight: 500 }}>
+              {error}
+            </div>
+          )}
+
+          <div className="card" style={{ padding: '28px 24px' }}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div>
+                <label style={lbl}>Nombre</label>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} style={inp} required placeholder="Tu nombre" />
+              </div>
+              <div>
+                <label style={lbl}>Email</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={inp} required placeholder="tu@email.com" />
+              </div>
+              <div>
+                <label style={lbl}>Contraseña</label>
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} style={inp} required placeholder="••••••••" />
+              </div>
+
+              <div>
+                <label style={lbl}>¿Quién gana el Mundial 2026? 🏆</label>
+                <select value={championPrediction} onChange={(e) => setChampionPrediction(e.target.value)} style={{ ...inp }} required>
+                  <option value="">Seleccioná un equipo...</option>
+                  {TEAMS.sort().map((team) => (
+                    <option key={team} value={team}>{team}</option>
+                  ))}
+                </select>
+                <p style={{ fontSize: '0.78rem', color: 'var(--muted)', marginTop: 6, margin: '6px 0 0' }}>
+                  Acertás al campeón → +10 puntos bonus al final del torneo
+                </p>
+              </div>
+
+              <button type="submit" disabled={loading}
+                style={{ background: loading ? '#94a3b8' : 'var(--navy)', color: 'white', border: 'none', borderRadius: 8, padding: '11px', fontSize: '0.9rem', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', marginTop: 4 }}>
+                {loading ? 'Creando cuenta...' : 'Crear cuenta'}
+              </button>
+            </form>
           </div>
 
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-600"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2">
-              🏆 ¿Quién será el campeón del mundial?
-            </label>
-            <select
-              value={championPrediction}
-              onChange={(e) => setChampionPrediction(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-600"
-              required
-            >
-              <option value="">Selecciona un equipo...</option>
-              {TEAMS.sort().map((team) => (
-                <option key={team} value={team}>
-                  {team}
-                </option>
-              ))}
-            </select>
-            <p className="text-sm text-gray-500 mt-1">
-              Recibirás 10 puntos adicionales si aciertas
-            </p>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700 disabled:opacity-50"
-          >
-            {loading ? 'Registrando...' : 'Registrarse'}
-          </button>
-        </form>
-
-        <p className="text-center mt-4">
-          ¿Ya tienes cuenta?{' '}
-          <Link href="/login" className="text-blue-600 font-bold hover:underline">
-            Login
-          </Link>
-        </p>
+          <p style={{ textAlign: 'center', marginTop: 20, fontSize: '0.875rem', color: 'var(--muted)' }}>
+            ¿Ya tenés cuenta?{' '}
+            <Link href="/login" style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>Iniciar sesión</Link>
+          </p>
+        </div>
       </div>
     </div>
   );
