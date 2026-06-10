@@ -100,7 +100,38 @@ JWT_SECRET=tu-clave-secreta-aqui
 
 Ver [docs/SCORING_SYSTEM.md](docs/SCORING_SYSTEM.md) para detalles
 
-## Integración con API Football
+## Sincronización con ESPN (sin API key)
+
+La app sincroniza fixtures y resultados desde el endpoint público de ESPN
+(https://site.web.api.espn.com/.../fifa.world/scoreboard). **No requiere
+credenciales.**
+
+### Manual
+```bash
+npm run sync-espn
+```
+Trae los 104 partidos del Mundial 2026 (11 jun – 19 jul) y actualiza
+fixtures, resultados y puntos en una sola llamada.
+
+### Automático (Railway Cron)
+Endpoint protegido: `POST/GET /api/admin/sync-espn`
+
+1. En `.env.local` (y en Railway → Variables):
+   ```
+   ADMIN_TOKEN=<un-token-largo-y-aleatorio>
+   ```
+2. En Railway → tu servicio → **Cron Jobs** → New Cron:
+   - **Schedule**: `0 * * * *` (cada hora)
+   - **Command**: `curl -fsS "https://<tu-dominio>/api/admin/sync-espn?token=$ADMIN_TOKEN"`
+
+Resultado: cada hora se traen fixtures + resultados + recalculan puntos
+automáticamente. Sin intervención manual.
+
+### Alternativa: GitHub Actions
+Crear `.github/workflows/sync.yml` con un cron que haga `curl` al endpoint.
+Útil si Railway Cron no está disponible en tu plan.
+
+## Integración con API Football (legacy, opcional)
 
 La app está integrada con **api-football.com** a través de RapidAPI:
 
