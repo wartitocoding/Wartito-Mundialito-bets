@@ -141,16 +141,10 @@ export default function PredictPage() {
               <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>✅ Ganador acertado: <strong style={{ color: 'var(--navy)' }}>+1 pt</strong></span>
             </div>
 
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button type="submit" disabled={submitting}
-                style={{ flex: 1, background: submitting ? '#94a3b8' : 'var(--navy)', color: 'white', border: 'none', borderRadius: 8, padding: '12px', fontSize: '0.9rem', fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-                {submitting ? 'Guardando...' : '¡Apostar al tiro!'}
-              </button>
-              <Link href="/dashboard"
-                style={{ flex: 1, background: 'var(--surface)', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px', fontSize: '0.9rem', fontWeight: 600, textDecoration: 'none', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                Me rajé
-              </Link>
-            </div>
+            <button type="submit" disabled={submitting}
+              style={{ width: '100%', background: submitting ? '#94a3b8' : 'var(--navy)', color: 'white', border: 'none', borderRadius: 8, padding: '13px', fontSize: '0.95rem', fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+              {submitting ? 'Guardando...' : 'Confirmar apuesta'}
+            </button>
           </form>
         </div>
       </div>
