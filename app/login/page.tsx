@@ -26,7 +26,7 @@ export default function Login() {
       localStorage.setItem('token', data.token);
       router.push('/dashboard');
     } catch {
-      setError('No se pudo conectar, inténtalo de nuevo po.');
+      setError('No se pudo conectar, inténtalo de nuevo.');
     } finally {
       setLoading(false);
     }

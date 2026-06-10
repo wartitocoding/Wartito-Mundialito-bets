@@ -26,7 +26,7 @@ export default function Register() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    if (!championPrediction) { setError('Tienes que elegir al campeón po, no te puedes quedar sin eso.'); setLoading(false); return; }
+    if (!championPrediction) { setError('Tienes que elegir al campeón, no te puedes quedar sin eso.'); setLoading(false); return; }
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
@@ -38,7 +38,7 @@ export default function Register() {
       localStorage.setItem('token', data.token);
       router.push('/dashboard');
     } catch {
-      setError('No se pudo conectar, inténtalo de nuevo po.');
+      setError('No se pudo conectar, inténtalo de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -67,7 +67,7 @@ export default function Register() {
         <div style={{ width: '100%', maxWidth: 460 }}>
           <div style={{ marginBottom: 28 }}>
             <h1 style={{ fontWeight: 800, fontSize: '1.6rem', letterSpacing: '-0.02em', margin: '0 0 6px', color: 'var(--navy)' }}>Crear cuenta</h1>
-            <p style={{ color: 'var(--muted)', fontSize: '0.875rem', margin: 0 }}>Llena el formulario y únete al juego, po</p>
+            <p style={{ color: 'var(--muted)', fontSize: '0.875rem', margin: 0 }}>Llena el formulario y únete al juego</p>
           </div>
 
           {error && (

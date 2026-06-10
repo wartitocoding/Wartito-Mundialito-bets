@@ -59,7 +59,7 @@ export default function PredictPage() {
       if (!res.ok) { setError(data.error || 'Error al guardar'); return; }
       router.push('/dashboard');
     } catch {
-      setError('No se pudo conectar, inténtalo de nuevo po.');
+      setError('No se pudo conectar, inténtalo de nuevo.');
     } finally {
       setSubmitting(false);
     }

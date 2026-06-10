@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Wartito Mundialito Bets",
-  description: "Predicciones del Mundial 2026 — Compite con tus amigos, po",
+  description: "Predicciones del Mundial 2026 — Compite con tus amigos",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
