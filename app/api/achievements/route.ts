@@ -3,6 +3,8 @@ import { initDb } from '@/lib/db';
 import { getUserAchievements, checkAndAwardAchievements, ACHIEVEMENT_INFO } from '@/lib/achievements';
 import { verifyAuth } from '@/lib/middleware';
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     initDb();

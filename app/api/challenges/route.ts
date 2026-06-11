@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initDb, getDatabase } from '@/lib/db';
 import { verifyAuth } from '@/lib/middleware';
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     initDb();

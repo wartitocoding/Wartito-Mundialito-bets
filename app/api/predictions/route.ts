@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initDb, getDatabase } from '@/lib/db';
 import { verifyAuth } from '@/lib/middleware';
 
+export const dynamic = "force-dynamic";
+
 function getPhase(stage: string): string {
   const s = stage.toLowerCase();
   if (s.includes('group') || s.includes('grupo')) return 'grupos';

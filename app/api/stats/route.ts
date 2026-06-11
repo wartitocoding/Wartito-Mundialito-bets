@@ -3,6 +3,8 @@ import { initDb, getDatabase } from '@/lib/db';
 import { verifyAuth } from '@/lib/middleware';
 import { getCurrentStreak } from '@/lib/achievements';
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     initDb();

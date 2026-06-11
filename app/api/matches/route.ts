@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initDb, getDatabase } from '@/lib/db';
 import { syncWithESPN } from '@/lib/espn-sync';
 
+export const dynamic = "force-dynamic";
+
 // Auto-sync: si la DB está vacía la primera vez que alguien entra,
 // disparamos un sync con ESPN para poblar los 104 partidos del mundial.
 // Se reintenta como máximo cada 5 minutos para evitar abuso.

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initDb } from '@/lib/db';
 import { setWorldCupChampion, getWorldCupChampion, updateChampionPoints } from '@/lib/auth';
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     initDb();

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initDb } from '@/lib/db';
 import { getUserByEmail, verifyPassword, createToken } from '@/lib/auth';
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   try {
     initDb();

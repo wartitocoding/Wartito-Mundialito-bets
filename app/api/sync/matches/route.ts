@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { syncWorldcupMatches, updateLiveResults } from '@/lib/sync';
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization');
