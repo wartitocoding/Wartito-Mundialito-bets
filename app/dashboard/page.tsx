@@ -137,17 +137,24 @@ export default function Dashboard() {
 
   const openMatchBets = async (match: Match) => {
     const matchDate = new Date(match.date);
-    if (matchDate > new Date()) return; // partido no empezado
+    if (matchDate > new Date() && match.status !== 'live') return;
     setLoadingBets(true);
     const token = localStorage.getItem('token');
     try {
       const res = await fetch(`/api/matches/${match.id}/bets`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
         setMatchBetsModal(data);
+      } else {
+        // Mostrar modal vacío con el error para que el usuario sepa qué pasó
+        setMatchBetsModal({ match, bets: [] });
+        console.error('Error al cargar apuestas:', data);
       }
+    } catch (e) {
+      setMatchBetsModal({ match, bets: [] });
+      console.error('Error al cargar apuestas:', e);
     } finally {
       setLoadingBets(false);
     }
@@ -790,6 +797,11 @@ export default function Dashboard() {
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
                 <span className="tag">{matchBetsModal.match.stage}</span>
+                {matchBetsModal.match.status === 'live' && (
+                  <span style={{ background: '#fff7ed', color: '#ea580c', borderRadius: 6, padding: '2px 8px', fontSize: '0.75rem', fontWeight: 700 }}>
+                    🔴 En vivo
+                  </span>
+                )}
                 {matchBetsModal.match.result1 !== null && (
                   <span style={{ background: '#dcfce7', color: '#16a34a', borderRadius: 6, padding: '2px 8px', fontSize: '0.75rem', fontWeight: 700 }}>
                     Resultado: {matchBetsModal.match.result1} – {matchBetsModal.match.result2}
