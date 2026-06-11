@@ -13,3 +13,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .vercel
+
+# build artifacts
+tsconfig.tsbuildinfo
+.next/
