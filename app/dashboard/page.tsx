@@ -75,15 +75,10 @@ function mondayOf(date: Date): Date {
  * Si no hay partidos próximos en ese rango, retorna semanas vacías para
  * que el render muestre el estado "sin partidos" en lugar de nada.
  */
-function groupMatchesByWeek(matches: Match[], fromDate: Date, numWeeks: number) {
-  const upcoming = matches.filter(m => new Date(m.date) >= fromDate)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-  // Punto de partida: lunes de la semana del próximo partido (no del cliente).
-  // Esto hace que el calendario siempre muestre partidos relevantes,
-  // independiente de la fecha del navegador del usuario.
-  const firstMatchDate = upcoming.length > 0 ? new Date(upcoming[0].date) : fromDate;
-  const startMonday = mondayOf(firstMatchDate < fromDate ? fromDate : firstMatchDate);
+function groupMatchesByWeek(_matches: Match[], fromDate: Date, numWeeks: number) {
+  // Siempre anclar desde el lunes de la semana actual para que los partidos
+  // en curso (fecha ya pasada pero sin resultado) sigan apareciendo en el calendario.
+  const startMonday = mondayOf(fromDate);
 
   const weeks: {
     weekNum: number; label: string; monday: Date; sunday: Date;
