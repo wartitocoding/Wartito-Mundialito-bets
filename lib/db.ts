@@ -2,15 +2,35 @@ import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 
-// Ruta de la DB configurable vía env (para montar un volumen persistente).
-//   - Railway: monta un volumen en /data y define DATABASE_PATH=/data/bets.db
-//   - Local / default: ./data/bets.db
-// Así los datos sobreviven a los redeploys en vez de borrarse en cada uno.
-const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), "data", "bets.db");
+// Ruta de la DB. Para que los datos sobrevivan a los redeploys necesitamos
+// que apunte a un volumen persistente. Orden de resolución:
+//   1. DATABASE_PATH si está definida (control explícito).
+//   2. /data si hay un volumen montado y escribible (auto-detección Railway).
+//      → Solo tienes que montar un volumen en /data; no hace falta env var.
+//   3. ./data/bets.db (local / sin volumen) — efímero en contenedores.
+function resolveDbPath(): string {
+  if (process.env.DATABASE_PATH) return process.env.DATABASE_PATH;
+  try {
+    fs.accessSync("/data", fs.constants.W_OK);
+    return "/data/bets.db"; // volumen persistente detectado
+  } catch {
+    // /data no existe o no es escribible → fallback local
+  }
+  return path.join(process.cwd(), "data", "bets.db");
+}
+
+const dbPath = resolveDbPath();
 const dbDir = path.dirname(dbPath);
 
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
+}
+
+if (!process.env.DATABASE_PATH && !dbPath.startsWith("/data")) {
+  console.warn(
+    "⚠️  La DB está en disco EFÍMERO (" + dbPath + "). En Railway los datos " +
+    "se borrarán en cada redeploy. Monta un volumen en /data para que persistan."
+  );
 }
 
 let db: Database.Database;
