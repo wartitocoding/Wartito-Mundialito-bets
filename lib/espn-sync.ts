@@ -167,10 +167,19 @@ function recalcPointsFor(db: Database.Database, externalId: string, g1: number, 
     .all(match.id) as any[];
 
   for (const p of preds) {
+    const betType = p.betType || 'exact';
     let points = 0;
-    if (p.prediction1 === g1 && p.prediction2 === g2) points = 3;
-    else if (g1 === g2 && p.prediction1 === p.prediction2) points = 2;
-    else if ((g1 > g2 && p.prediction1 > p.prediction2) || (g1 < g2 && p.prediction1 < p.prediction2)) points = 1;
+    if (betType === 'exact') {
+      if (p.prediction1 === g1 && p.prediction2 === g2) points = 3;
+      else if (g1 === g2 && p.prediction1 === p.prediction2) points = 2;
+      else if ((g1 > g2 && p.prediction1 > p.prediction2) || (g1 < g2 && p.prediction1 < p.prediction2)) points = 1;
+    } else if (betType === 'draw') {
+      if (g1 === g2) points = 2;
+    } else if (betType === 'team1') {
+      if (g1 > g2) points = 1;
+    } else if (betType === 'team2') {
+      if (g2 > g1) points = 1;
+    }
     if (p.isWildcard) points *= 2;
     db.prepare('UPDATE predictions SET points = ? WHERE id = ?').run(points, p.id);
   }

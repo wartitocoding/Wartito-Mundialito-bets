@@ -33,6 +33,15 @@ interface Prediction {
   prediction2: number;
   points: number;
   isWildcard: number;
+  betType: 'exact' | 'draw' | 'team1' | 'team2';
+}
+
+function renderBet(pred: Prediction, team1: string, team2: string, big = false) {
+  const fs = big ? '2rem' : '1.5rem';
+  if (pred.betType === 'draw') return <span style={{ fontWeight: 800, fontSize: big ? '1.15rem' : '0.9rem' }}>🤝 Empate</span>;
+  if (pred.betType === 'team1') return <span style={{ fontWeight: 800, fontSize: big ? '1.05rem' : '0.85rem' }}>🏆 {team1}</span>;
+  if (pred.betType === 'team2') return <span style={{ fontWeight: 800, fontSize: big ? '1.05rem' : '0.85rem' }}>🏆 {team2}</span>;
+  return <span style={{ fontWeight: 800, fontSize: fs, letterSpacing: '-0.05em', lineHeight: 1 }}>{pred.prediction1} – {pred.prediction2}</span>;
 }
 
 function Logo({ size = 36 }: { size?: number }) {
@@ -388,7 +397,7 @@ export default function Dashboard() {
                         const pred = predictions.find(p => p.matchId === match.id);
                         const isPlayed = match.result1 !== null;
                         const isPast = new Date(match.date) < now;
-                        const isExact = pred && isPlayed && pred.prediction1 === match.result1 && pred.prediction2 === match.result2;
+                        const isExact = pred && isPlayed && pred.betType === 'exact' && pred.prediction1 === match.result1 && pred.prediction2 === match.result2;
 
                         let bgColor = '#ffffff';
                         let borderColor = 'var(--border)';
@@ -452,14 +461,14 @@ export default function Dashboard() {
                                   {pred && (
                                     <div>
                                       <div style={{ fontSize: '0.6rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tu apuesta</div>
-                                      <div style={{ fontWeight: 800, fontSize: '2rem', color: 'var(--navy)', letterSpacing: '-0.05em', lineHeight: 1 }}>{pred.prediction1} – {pred.prediction2}</div>
+                                      <div style={{ color: 'var(--navy)' }}>{renderBet(pred, match.team1, match.team2, true)}</div>
                                     </div>
                                   )}
                                 </div>
                               ) : pred ? (
                                 <div>
                                   <div style={{ fontSize: '0.6rem', color: '#16a34a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tu apuesta ✓{pred.isWildcard === 1 ? ' ⚡' : ''}</div>
-                                  <div style={{ fontWeight: 800, fontSize: '2rem', color: '#166534', letterSpacing: '-0.05em', lineHeight: 1 }}>{pred.prediction1} – {pred.prediction2}</div>
+                                  <div style={{ color: '#166534' }}>{renderBet(pred, match.team1, match.team2, true)}</div>
                                 </div>
                               ) : isPast ? (
                                 <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Sin apuesta registrada</span>
@@ -539,7 +548,7 @@ export default function Dashboard() {
                       </div>
                       {pred ? (
                         <div style={{ textAlign: 'center', padding: '8px 16px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8 }}>
-                          <div style={{ fontWeight: 800, fontSize: '1.7rem', color: '#166534', letterSpacing: '-0.05em', lineHeight: 1 }}>{pred.prediction1} – {pred.prediction2}</div>
+                          <div style={{ color: '#166534' }}>{renderBet(pred, match.team1, match.team2, true)}</div>
                           <div style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 3 }}>Tu apuesta</div>
                         </div>
                       ) : (
@@ -685,12 +694,9 @@ export default function Dashboard() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {finishedMatches.map((match) => {
                   const pred = predictions.find((p) => p.matchId === match.id);
-                  const isExact = pred && pred.prediction1 === match.result1 && pred.prediction2 === match.result2;
-                  const isCorrect = pred && !isExact && (
-                    (match.result1! > match.result2! && pred.prediction1 > pred.prediction2) ||
-                    (match.result1! < match.result2! && pred.prediction1 < pred.prediction2) ||
-                    (match.result1 === match.result2 && pred.prediction1 === pred.prediction2)
-                  );
+                  // isExact aplica solo a apuestas exactas con marcador clavado
+                  const isExact = pred && pred.betType === 'exact' && pred.prediction1 === match.result1 && pred.prediction2 === match.result2;
+                  const isCorrect = pred && !isExact && (pred.points || 0) > 0;
                   const pts = pred?.points || 0;
                   const accentColor = isExact ? '#10b981' : isCorrect ? '#3b82f6' : pts === 0 && pred ? '#ef4444' : 'var(--border)';
                   return (
@@ -706,8 +712,8 @@ export default function Dashboard() {
                         </div>
                         <div style={{ textAlign: 'center' }}>
                           <div style={{ fontSize: '0.6rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>Tu apuesta</div>
-                          <div style={{ fontWeight: 800, fontSize: '2rem', color: pred ? 'var(--navy)' : 'var(--muted)', letterSpacing: '-0.05em', lineHeight: 1 }}>
-                            {pred ? `${pred.prediction1} – ${pred.prediction2}` : '—'}
+                          <div style={{ color: pred ? 'var(--navy)' : 'var(--muted)' }}>
+                            {pred ? renderBet(pred, match.team1, match.team2, true) : <span style={{ fontSize: '2rem', fontWeight: 800 }}>—</span>}
                           </div>
                         </div>
                       </div>

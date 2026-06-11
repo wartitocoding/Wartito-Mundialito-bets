@@ -48,6 +48,8 @@ db.exec(`
     prediction1 INTEGER NOT NULL,
     prediction2 INTEGER NOT NULL,
     points INTEGER DEFAULT 0,
+    isWildcard INTEGER DEFAULT 0,
+    betType TEXT DEFAULT 'exact',
     createdAt INTEGER NOT NULL,
     FOREIGN KEY(userId) REFERENCES users(id),
     FOREIGN KEY(matchId) REFERENCES matches(id),

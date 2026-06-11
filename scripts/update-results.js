@@ -112,29 +112,25 @@ function calculatePointsForMatch(db, externalId, actualGoals1, actualGoals2) {
       .all(match.id);
 
     for (const prediction of predictions) {
+      const betType = prediction.betType || 'exact';
       let points = 0;
 
-      // Marcador exacto: 3 puntos
-      if (
-        prediction.prediction1 === actualGoals1 &&
-        prediction.prediction2 === actualGoals2
-      ) {
-        points = 3;
+      if (betType === 'exact') {
+        if (prediction.prediction1 === actualGoals1 && prediction.prediction2 === actualGoals2) points = 3;
+        else if (actualGoals1 === actualGoals2 && prediction.prediction1 === prediction.prediction2) points = 2;
+        else if (
+          (actualGoals1 > actualGoals2 && prediction.prediction1 > prediction.prediction2) ||
+          (actualGoals1 < actualGoals2 && prediction.prediction1 < prediction.prediction2)
+        ) points = 1;
+      } else if (betType === 'draw') {
+        if (actualGoals1 === actualGoals2) points = 2;
+      } else if (betType === 'team1') {
+        if (actualGoals1 > actualGoals2) points = 1;
+      } else if (betType === 'team2') {
+        if (actualGoals2 > actualGoals1) points = 1;
       }
-      // Empate acertado (no exacto): 2 puntos
-      else if (
-        actualGoals1 === actualGoals2 &&
-        prediction.prediction1 === prediction.prediction2
-      ) {
-        points = 2;
-      }
-      // Ganador correcto: 1 punto
-      else if (
-        (actualGoals1 > actualGoals2 && prediction.prediction1 > prediction.prediction2) ||
-        (actualGoals1 < actualGoals2 && prediction.prediction1 < prediction.prediction2)
-      ) {
-        points = 1;
-      }
+
+      if (prediction.isWildcard) points = points * 2;
 
       db.prepare('UPDATE predictions SET points = ? WHERE id = ?').run(
         points,

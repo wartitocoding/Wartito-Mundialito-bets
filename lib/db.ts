@@ -98,6 +98,16 @@ export function initDb() {
     );
   `);
 
+  // Migration: add isWildcard to predictions (safe to re-run)
+  try {
+    database.exec('ALTER TABLE predictions ADD COLUMN isWildcard INTEGER DEFAULT 0');
+  } catch { /* column already exists */ }
+
+  // Migration: add betType ('exact' | 'draw' | 'team1' | 'team2')
+  try {
+    database.exec("ALTER TABLE predictions ADD COLUMN betType TEXT DEFAULT 'exact'");
+  } catch { /* column already exists */ }
+
   // Comentarios en partidos
   database.exec(`
     CREATE TABLE IF NOT EXISTS match_comments (
