@@ -2,8 +2,12 @@ import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 
-const dbDir = path.join(process.cwd(), "data");
-const dbPath = path.join(dbDir, "bets.db");
+// Ruta de la DB configurable vía env (para montar un volumen persistente).
+//   - Railway: monta un volumen en /data y define DATABASE_PATH=/data/bets.db
+//   - Local / default: ./data/bets.db
+// Así los datos sobreviven a los redeploys en vez de borrarse en cada uno.
+const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), "data", "bets.db");
+const dbDir = path.dirname(dbPath);
 
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
