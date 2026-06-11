@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { initDb, getDatabase } from '@/lib/db';
+import { initDb, getDatabase, dbPath } from '@/lib/db';
 import fs from 'fs';
-import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +14,6 @@ export async function GET() {
     initDb();
     const db = getDatabase();
 
-    const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'bets.db');
     let fileExists = false;
     let fileSize = 0;
     try {

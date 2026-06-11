@@ -19,7 +19,7 @@ function resolveDbPath(): string {
   return path.join(process.cwd(), "data", "bets.db");
 }
 
-const dbPath = resolveDbPath();
+export const dbPath = resolveDbPath();
 const dbDir = path.dirname(dbPath);
 
 if (!fs.existsSync(dbDir)) {
