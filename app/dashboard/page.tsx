@@ -129,6 +129,29 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'calendar' | 'matches' | 'ranking' | 'my-predictions'>('calendar');
   const [prevRankings, setPrevRankings] = useState<{[id: number]: number}>({});
+  const [matchBetsModal, setMatchBetsModal] = useState<{
+    match: Match;
+    bets: { betType: string; prediction1: number; prediction2: number; isWildcard: number; points: number; userName: string }[];
+  } | null>(null);
+  const [loadingBets, setLoadingBets] = useState(false);
+
+  const openMatchBets = async (match: Match) => {
+    const matchDate = new Date(match.date);
+    if (matchDate > new Date()) return; // partido no empezado
+    setLoadingBets(true);
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`/api/matches/${match.id}/bets`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMatchBetsModal(data);
+      }
+    } finally {
+      setLoadingBets(false);
+    }
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -407,6 +430,7 @@ export default function Dashboard() {
                         else if (!isPast) { bgColor = '#fff7f7'; borderColor = '#fca5a5'; leftAccent = '#ef4444'; }
 
                         const clickable = !isPlayed && !isPast;
+                        const clickableFinished = isPast;
                         const cardStyle: React.CSSProperties = {
                           background: bgColor,
                           border: `1px solid ${borderColor}`,
@@ -416,23 +440,24 @@ export default function Dashboard() {
                           textDecoration: 'none',
                           color: 'inherit',
                           display: 'block',
-                          cursor: clickable ? 'pointer' : 'default',
+                          cursor: clickable || clickableFinished ? 'pointer' : 'default',
                           transition: 'transform 0.15s ease, box-shadow 0.15s ease',
                         };
                         const CardWrapper: any = clickable ? Link : 'div';
+                        const hoverHandlers = {
+                          onMouseEnter: (e: any) => {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 6px 16px rgba(15,31,61,0.08)';
+                          },
+                          onMouseLeave: (e: any) => {
+                            e.currentTarget.style.transform = 'none';
+                            e.currentTarget.style.boxShadow = 'none';
+                          },
+                        };
                         const wrapperProps: any = clickable
-                          ? {
-                              href: `/predict/${match.id}`,
-                              style: cardStyle,
-                              onMouseEnter: (e: any) => {
-                                e.currentTarget.style.transform = 'translateY(-2px)';
-                                e.currentTarget.style.boxShadow = '0 6px 16px rgba(15,31,61,0.08)';
-                              },
-                              onMouseLeave: (e: any) => {
-                                e.currentTarget.style.transform = 'none';
-                                e.currentTarget.style.boxShadow = 'none';
-                              },
-                            }
+                          ? { href: `/predict/${match.id}`, style: cardStyle, ...hoverHandlers }
+                          : clickableFinished
+                          ? { style: cardStyle, onClick: () => openMatchBets(match), ...hoverHandlers }
                           : { style: cardStyle };
                         return (
                           <CardWrapper key={match.id} {...wrapperProps}>
@@ -491,6 +516,11 @@ export default function Dashboard() {
                                   <span
                                     style={{ background: pred ? 'white' : 'var(--navy)', color: pred ? 'var(--navy)' : 'white', border: pred ? '1px solid var(--border)' : 'none', padding: '6px 14px', borderRadius: 7, fontSize: '0.78rem', fontWeight: 700, display: 'inline-block' }}>
                                     {pred ? 'Cambiar →' : 'Apostar →'}
+                                  </span>
+                                )}
+                                {isPast && (
+                                  <span style={{ background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', padding: '5px 12px', borderRadius: 7, fontSize: '0.75rem', fontWeight: 700 }}>
+                                    👁 Ver apuestas
                                   </span>
                                 )}
                               </div>
@@ -700,7 +730,7 @@ export default function Dashboard() {
                   const pts = pred?.points || 0;
                   const accentColor = isExact ? '#10b981' : isCorrect ? '#3b82f6' : pts === 0 && pred ? '#ef4444' : 'var(--border)';
                   return (
-                    <div key={match.id} className="card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16, borderLeft: `3px solid ${accentColor}` }}>
+                    <div key={match.id} className="card" onClick={() => openMatchBets(match)} style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16, borderLeft: `3px solid ${accentColor}`, cursor: 'pointer' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}><span className="tag">{match.stage}</span></div>
                         <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--navy)' }}>{match.team1} vs {match.team2}</div>
@@ -735,6 +765,104 @@ export default function Dashboard() {
         )}
 
       </div>
+
+      {/* ====== MODAL: APUESTAS DEL PARTIDO ====== */}
+      {matchBetsModal && (
+        <div
+          onClick={() => setMatchBetsModal(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
+            backdropFilter: 'blur(4px)', zIndex: 100,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'white', borderRadius: 16, padding: '28px 24px',
+              width: '100%', maxWidth: 480, maxHeight: '80vh',
+              overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+            }}
+          >
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+                <span className="tag">{matchBetsModal.match.stage}</span>
+                {matchBetsModal.match.result1 !== null && (
+                  <span style={{ background: '#dcfce7', color: '#16a34a', borderRadius: 6, padding: '2px 8px', fontSize: '0.75rem', fontWeight: 700 }}>
+                    Resultado: {matchBetsModal.match.result1} – {matchBetsModal.match.result2}
+                  </span>
+                )}
+              </div>
+              <h3 style={{ margin: 0, fontWeight: 800, fontSize: '1.2rem', color: 'var(--navy)', letterSpacing: '-0.02em' }}>
+                {matchBetsModal.match.team1} vs {matchBetsModal.match.team2}
+              </h3>
+            </div>
+
+            {matchBetsModal.bets.length === 0 ? (
+              <p style={{ color: 'var(--muted)', textAlign: 'center', padding: '24px 0' }}>Nadie apostó en este partido</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {matchBetsModal.bets.map((bet, i) => {
+                  const betLabel = () => {
+                    if (bet.betType === 'draw') return '🤝 Empate';
+                    if (bet.betType === 'team1') return `🏆 ${matchBetsModal.match.team1}`;
+                    if (bet.betType === 'team2') return `🏆 ${matchBetsModal.match.team2}`;
+                    return `🎯 ${bet.prediction1} – ${bet.prediction2}`;
+                  };
+                  const hasPoints = bet.points > 0;
+                  return (
+                    <div key={i} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '12px 16px', borderRadius: 10,
+                      background: hasPoints ? '#f0fdf4' : '#f8fafc',
+                      border: `1px solid ${hasPoints ? '#bbf7d0' : 'var(--border)'}`,
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--navy)', marginBottom: 2 }}>
+                          {bet.userName}
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: '#475569' }}>
+                          {betLabel()}
+                          {bet.isWildcard === 1 && <span style={{ marginLeft: 6, color: '#d97706', fontWeight: 700 }}>⚡ x2</span>}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{
+                          fontWeight: 800, fontSize: '1.5rem', lineHeight: 1,
+                          color: hasPoints ? '#16a34a' : '#94a3b8',
+                        }}>
+                          {matchBetsModal.match.result1 !== null ? (hasPoints ? `+${bet.points}` : '0') : '—'}
+                        </div>
+                        <div style={{ fontSize: '0.6rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>pts</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <button
+              onClick={() => setMatchBetsModal(null)}
+              style={{
+                marginTop: 20, width: '100%', padding: '10px 0', borderRadius: 10,
+                background: 'var(--navy)', color: 'white', fontWeight: 700,
+                border: 'none', cursor: 'pointer', fontSize: '0.95rem',
+              }}
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loadingBets && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)',
+          zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{ background: 'white', borderRadius: 12, padding: '20px 32px', fontWeight: 600 }}>Cargando...</div>
+        </div>
+      )}
     </div>
   );
 }

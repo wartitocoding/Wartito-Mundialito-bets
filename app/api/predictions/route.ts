@@ -38,8 +38,16 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(predictions);
   } catch (error) {
-    console.error('Get predictions error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('❌ GET /api/predictions FAILED:', {
+      error: errorMsg,
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+    });
+    return NextResponse.json(
+      { error: 'Internal server error', details: errorMsg },
+      { status: 500 }
+    );
   }
 }
 
@@ -126,7 +134,15 @@ export async function POST(req: NextRequest) {
     const prediction = db.prepare('SELECT * FROM predictions WHERE id = ?').get(result.lastInsertRowid);
     return NextResponse.json(prediction);
   } catch (error) {
-    console.error('Create prediction error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('❌ POST /api/predictions FAILED:', {
+      error: errorMsg,
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+    });
+    return NextResponse.json(
+      { error: 'Internal server error', details: errorMsg },
+      { status: 500 }
+    );
   }
 }

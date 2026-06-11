@@ -106,18 +106,25 @@ export function initDb() {
   // CREATE TABLE IF NOT EXISTS no actualiza schemas existentes; estas
   // ALTER TABLE rellenan columnas en DBs creadas con schemas viejos.
 
-  // users.championPrediction / championPoints
-  try { database.exec('ALTER TABLE users ADD COLUMN championPrediction TEXT'); } catch {}
-  try { database.exec('ALTER TABLE users ADD COLUMN championPoints INTEGER DEFAULT 0'); } catch {}
+  const migrations = [
+    { name: 'users.championPrediction', sql: 'ALTER TABLE users ADD COLUMN championPrediction TEXT' },
+    { name: 'users.championPoints', sql: 'ALTER TABLE users ADD COLUMN championPoints INTEGER DEFAULT 0' },
+    { name: 'predictions.isWildcard', sql: 'ALTER TABLE predictions ADD COLUMN isWildcard INTEGER DEFAULT 0' },
+    { name: 'predictions.betType', sql: "ALTER TABLE predictions ADD COLUMN betType TEXT DEFAULT 'exact'" },
+    { name: 'backfill betType', sql: "UPDATE predictions SET betType = 'exact' WHERE betType IS NULL" },
+  ];
 
-  // predictions.isWildcard
-  try { database.exec('ALTER TABLE predictions ADD COLUMN isWildcard INTEGER DEFAULT 0'); } catch {}
-
-  // predictions.betType ('exact' | 'draw' | 'team1' | 'team2')
-  try { database.exec("ALTER TABLE predictions ADD COLUMN betType TEXT DEFAULT 'exact'"); } catch {}
-
-  // Rellenar betType para apuestas viejas con valor por defecto
-  try { database.exec("UPDATE predictions SET betType = 'exact' WHERE betType IS NULL"); } catch {}
+  for (const mig of migrations) {
+    try {
+      database.exec(mig.sql);
+      console.log(`✓ Migration OK: ${mig.name}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!msg.includes('already exists') && !msg.includes('duplicate')) {
+        console.warn(`⚠ Migration warning (${mig.name}): ${msg}`);
+      }
+    }
+  }
 
   // Comentarios en partidos
   database.exec(`
