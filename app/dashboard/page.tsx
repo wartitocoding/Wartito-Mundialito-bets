@@ -49,29 +49,51 @@ function Logo({ size = 36 }: { size?: number }) {
   );
 }
 
-function getWeekBounds() {
-  const now = new Date();
-  const day = now.getDay();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
-  monday.setHours(0, 0, 0, 0);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
-  return { monday, sunday };
+/**
+ * Toma una fecha y devuelve el lunes 00:00 de su semana ISO.
+ */
+function mondayOf(date: Date): Date {
+  const d = new Date(date);
+  const dow = d.getDay();
+  d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
-function getNextWeeksBounds(numWeeks: number) {
-  const { monday: firstMonday } = getWeekBounds();
-  const weeks: { weekNum: number; label: string; monday: Date; sunday: Date }[] = [];
+/**
+ * Agrupa una lista de partidos (ordenados por fecha) en las primeras N
+ * semanas que contengan partidos a partir de una fecha base.
+ * Si no hay partidos próximos en ese rango, retorna semanas vacías para
+ * que el render muestre el estado "sin partidos" en lugar de nada.
+ */
+function groupMatchesByWeek(matches: Match[], fromDate: Date, numWeeks: number) {
+  const upcoming = matches.filter(m => new Date(m.date) >= fromDate)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  // Punto de partida: lunes de la semana del próximo partido (no del cliente).
+  // Esto hace que el calendario siempre muestre partidos relevantes,
+  // independiente de la fecha del navegador del usuario.
+  const firstMatchDate = upcoming.length > 0 ? new Date(upcoming[0].date) : fromDate;
+  const startMonday = mondayOf(firstMatchDate < fromDate ? fromDate : firstMatchDate);
+
+  const weeks: {
+    weekNum: number; label: string; monday: Date; sunday: Date;
+    matches: Match[]; days: { date: Date; matches: Match[] }[]; pendingCount: number;
+  }[] = [];
+
   for (let i = 0; i < numWeeks; i++) {
-    const m = new Date(firstMonday);
-    m.setDate(firstMonday.getDate() + i * 7);
-    const s = new Date(m);
-    s.setDate(m.getDate() + 6);
-    s.setHours(23, 59, 59, 999);
-    weeks.push({ weekNum: i + 1, label: `Semana ${i + 1}`, monday: m, sunday: s });
+    const monday = new Date(startMonday);
+    monday.setDate(startMonday.getDate() + i * 7);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    weeks.push({
+      weekNum: i + 1, label: `Semana ${i + 1}`,
+      monday, sunday,
+      matches: [], days: [], pendingCount: 0,
+    });
   }
+
   return weeks;
 }
 
@@ -165,34 +187,32 @@ export default function Dashboard() {
   }
 
   const now = new Date();
-  const weeks = getNextWeeksBounds(3);
-  const horizonStart = weeks[0].monday;
-  const horizonEnd = weeks[weeks.length - 1].sunday;
-
   const nextMatches = matches.filter((m) => new Date(m.date) > now);
   const finishedMatches = matches.filter((m) => m.result1 !== null);
 
-  const horizonMatches = matches.filter((m) => {
-    const d = new Date(m.date);
-    return d >= horizonStart && d <= horizonEnd;
-  }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-  const weeksWithDays = weeks.map(w => {
-    const wkMatches = horizonMatches.filter(m => {
+  // Agrupar por las próximas 3 semanas con partidos (relativo al próximo partido
+  // disponible, no a la fecha del cliente — robusto si su sistema tiene mal la hora).
+  const weeksWithDays = groupMatchesByWeek(matches, now, 3).map(w => {
+    const wkMatches = matches.filter(m => {
       const d = new Date(m.date);
       return d >= w.monday && d <= w.sunday;
-    });
+    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
     const days: { date: Date; matches: Match[] }[] = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date(w.monday);
       d.setDate(w.monday.getDate() + i);
-      const dayMatches = wkMatches.filter(m => isSameDay(new Date(m.date), d));
-      days.push({ date: d, matches: dayMatches });
+      days.push({ date: d, matches: wkMatches.filter(m => isSameDay(new Date(m.date), d)) });
     }
-    const pendingCount = wkMatches.filter(m => new Date(m.date) > now && !predictions.find(p => p.matchId === m.id)).length;
+    const pendingCount = wkMatches.filter(m =>
+      new Date(m.date) > now && !predictions.find(p => p.matchId === m.id)
+    ).length;
     return { ...w, matches: wkMatches, days, pendingCount };
   });
 
+  const horizonMatches = weeksWithDays.flatMap(w => w.matches);
+  const horizonStart = weeksWithDays[0]?.monday ?? now;
+  const horizonEnd = weeksWithDays[weeksWithDays.length - 1]?.sunday ?? now;
   const horizonPendingCount = horizonMatches.filter(m =>
     new Date(m.date) > now && !predictions.find(p => p.matchId === m.id)
   ).length;
@@ -377,8 +397,36 @@ export default function Dashboard() {
                         else if (pred) { bgColor = '#f0fdf4'; borderColor = '#86efac'; leftAccent = '#22c55e'; }
                         else if (!isPast) { bgColor = '#fff7f7'; borderColor = '#fca5a5'; leftAccent = '#ef4444'; }
 
+                        const clickable = !isPlayed && !isPast;
+                        const cardStyle: React.CSSProperties = {
+                          background: bgColor,
+                          border: `1px solid ${borderColor}`,
+                          borderLeft: `3px solid ${leftAccent}`,
+                          borderRadius: 10,
+                          padding: '14px 16px',
+                          textDecoration: 'none',
+                          color: 'inherit',
+                          display: 'block',
+                          cursor: clickable ? 'pointer' : 'default',
+                          transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                        };
+                        const CardWrapper: any = clickable ? Link : 'div';
+                        const wrapperProps: any = clickable
+                          ? {
+                              href: `/predict/${match.id}`,
+                              style: cardStyle,
+                              onMouseEnter: (e: any) => {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 6px 16px rgba(15,31,61,0.08)';
+                              },
+                              onMouseLeave: (e: any) => {
+                                e.currentTarget.style.transform = 'none';
+                                e.currentTarget.style.boxShadow = 'none';
+                              },
+                            }
+                          : { style: cardStyle };
                         return (
-                          <div key={match.id} style={{ background: bgColor, border: `1px solid ${borderColor}`, borderLeft: `3px solid ${leftAccent}`, borderRadius: 10, padding: '14px 16px' }}>
+                          <CardWrapper key={match.id} {...wrapperProps}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                               <div>
                                 <span className="tag" style={{ marginBottom: 4, display: 'inline-block' }}>{match.stage}</span>
@@ -431,14 +479,14 @@ export default function Dashboard() {
                                   </div>
                                 )}
                                 {!isPlayed && !isPast && (
-                                  <Link href={`/predict/${match.id}`}
-                                    style={{ background: pred ? 'white' : 'var(--navy)', color: pred ? 'var(--navy)' : 'white', border: pred ? '1px solid var(--border)' : 'none', padding: '6px 14px', borderRadius: 7, fontSize: '0.78rem', fontWeight: 700, textDecoration: 'none' }}>
-                                    {pred ? 'Cambiar' : 'Apostar'}
-                                  </Link>
+                                  <span
+                                    style={{ background: pred ? 'white' : 'var(--navy)', color: pred ? 'var(--navy)' : 'white', border: pred ? '1px solid var(--border)' : 'none', padding: '6px 14px', borderRadius: 7, fontSize: '0.78rem', fontWeight: 700, display: 'inline-block' }}>
+                                    {pred ? 'Cambiar →' : 'Apostar →'}
+                                  </span>
                                 )}
                               </div>
                             </div>
-                          </div>
+                          </CardWrapper>
                         );
                               })}
                             </div>
