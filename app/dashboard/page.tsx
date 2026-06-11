@@ -220,7 +220,7 @@ export default function Dashboard() {
 
   const now = new Date();
   const nextMatches = matches.filter((m) => new Date(m.date) > now);
-  const finishedMatches = matches.filter((m) => m.result1 !== null);
+  const finishedMatches = matches.filter((m) => m.result1 !== null || m.status === 'live');
 
   // Agrupar por las próximas 3 semanas con partidos (relativo al próximo partido
   // disponible, no a la fecha del cliente — robusto si su sistema tiene mal la hora).
@@ -418,6 +418,7 @@ export default function Dashboard() {
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 10 }}>
                               {dayMatches.map((match) => {
                         const pred = predictions.find(p => p.matchId === match.id);
+                        const isLive = match.status === 'live';
                         const isPlayed = match.result1 !== null;
                         const isPast = new Date(match.date) < now;
                         const isExact = pred && isPlayed && pred.betType === 'exact' && pred.prediction1 === match.result1 && pred.prediction2 === match.result2;
@@ -425,12 +426,13 @@ export default function Dashboard() {
                         let bgColor = '#ffffff';
                         let borderColor = 'var(--border)';
                         let leftAccent = 'transparent';
-                        if (isPlayed) { bgColor = '#f8fafc'; borderColor = '#cbd5e1'; leftAccent = '#cbd5e1'; }
+                        if (isLive) { bgColor = '#fff7ed'; borderColor = '#fed7aa'; leftAccent = '#f97316'; }
+                        else if (isPlayed) { bgColor = '#f8fafc'; borderColor = '#cbd5e1'; leftAccent = '#cbd5e1'; }
                         else if (pred) { bgColor = '#f0fdf4'; borderColor = '#86efac'; leftAccent = '#22c55e'; }
                         else if (!isPast) { bgColor = '#fff7f7'; borderColor = '#fca5a5'; leftAccent = '#ef4444'; }
 
-                        const clickable = !isPlayed && !isPast;
-                        const clickableFinished = isPast;
+                        const clickable = !isPlayed && !isPast && !isLive;
+                        const clickableFinished = isPast || isLive;
                         const cardStyle: React.CSSProperties = {
                           background: bgColor,
                           border: `1px solid ${borderColor}`,
@@ -472,7 +474,8 @@ export default function Dashboard() {
                                 <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--navy)' }}>
                                   {new Date(match.date).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
                                 </div>
-                                {isPlayed && <div style={{ fontSize: '0.75rem', color: 'var(--muted)', fontWeight: 600 }}>Finalizado</div>}
+                                {isLive && <div style={{ fontSize: '0.72rem', color: '#ea580c', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ea580c', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />En vivo</div>}
+                                {isPlayed && !isLive && <div style={{ fontSize: '0.75rem', color: 'var(--muted)', fontWeight: 600 }}>Finalizado</div>}
                               </div>
                             </div>
 
@@ -518,9 +521,9 @@ export default function Dashboard() {
                                     {pred ? 'Cambiar →' : 'Apostar →'}
                                   </span>
                                 )}
-                                {isPast && (
-                                  <span style={{ background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', padding: '5px 12px', borderRadius: 7, fontSize: '0.75rem', fontWeight: 700 }}>
-                                    👁 Ver apuestas
+                                {(isPast || isLive) && (
+                                  <span style={{ background: isLive ? '#fff7ed' : '#eff6ff', color: isLive ? '#ea580c' : '#2563eb', border: `1px solid ${isLive ? '#fed7aa' : '#bfdbfe'}`, padding: '5px 12px', borderRadius: 7, fontSize: '0.75rem', fontWeight: 700 }}>
+                                    {isLive ? '🔴 Ver apuestas' : '👁 Ver apuestas'}
                                   </span>
                                 )}
                               </div>

@@ -16,9 +16,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(matchId) as any;
     if (!match) return NextResponse.json({ error: 'Partido no encontrado' }, { status: 404 });
 
-    // Solo mostrar apuestas si el partido ya empezó o terminó
+    // Solo mostrar apuestas si el partido ya empezó (en vivo o finalizado)
     const matchDate = new Date(match.date).getTime();
-    if (matchDate > Date.now()) {
+    const isLiveOrPast = matchDate <= Date.now() || match.status === 'live';
+    if (!isLiveOrPast) {
       return NextResponse.json({ error: 'El partido aún no ha comenzado' }, { status: 403 });
     }
 
