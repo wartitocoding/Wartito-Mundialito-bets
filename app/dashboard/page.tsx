@@ -36,6 +36,16 @@ interface Prediction {
   betType: 'exact' | 'draw' | 'team1' | 'team2';
 }
 
+interface PublicBet {
+  matchId: number;
+  betType: string;
+  prediction1: number;
+  prediction2: number;
+  isWildcard: number;
+  points: number;
+  userName: string;
+}
+
 function renderBet(pred: Prediction, team1: string, team2: string, big = false) {
   const fs = big ? '2rem' : '1.5rem';
   if (pred.betType === 'draw') return <span style={{ fontWeight: 800, fontSize: big ? '1.15rem' : '0.9rem' }}>🤝 Empate</span>;
@@ -120,6 +130,7 @@ export default function Dashboard() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [rankings, setRankings] = useState<Ranking[]>([]);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
+  const [publicBets, setPublicBets] = useState<Record<number, PublicBet[]>>({});
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'calendar' | 'matches' | 'ranking' | 'my-predictions'>('calendar');
@@ -128,31 +139,11 @@ export default function Dashboard() {
     match: Match;
     bets: { betType: string; prediction1: number; prediction2: number; isWildcard: number; points: number; userName: string }[];
   } | null>(null);
-  const [loadingBets, setLoadingBets] = useState(false);
 
-  const openMatchBets = async (match: Match) => {
+  const openMatchBets = (match: Match) => {
     const matchDate = new Date(match.date);
     if (matchDate > new Date() && match.status !== 'live') return;
-    setLoadingBets(true);
-    const token = localStorage.getItem('token');
-    try {
-      const res = await fetch(`/api/matches/${match.id}/bets`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setMatchBetsModal(data);
-      } else {
-        // Mostrar modal vacío con el error para que el usuario sepa qué pasó
-        setMatchBetsModal({ match, bets: [] });
-        console.error('Error al cargar apuestas:', data);
-      }
-    } catch (e) {
-      setMatchBetsModal({ match, bets: [] });
-      console.error('Error al cargar apuestas:', e);
-    } finally {
-      setLoadingBets(false);
-    }
+    setMatchBetsModal({ match, bets: publicBets[match.id] || [] });
   };
 
   useEffect(() => {
@@ -185,10 +176,12 @@ export default function Dashboard() {
 
   const fetchData = async (token: string) => {
     try {
-      const [matchesRes, rankingsRes, predictionsRes] = await Promise.all([
+      const headers = { Authorization: `Bearer ${token}` };
+      const [matchesRes, rankingsRes, predictionsRes, publicBetsRes] = await Promise.all([
         fetch('/api/matches'),
         fetch('/api/rankings'),
-        fetch('/api/predictions', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/predictions', { headers }),
+        fetch('/api/bets/public', { headers }),
       ]);
       if (!matchesRes.ok || !rankingsRes.ok || !predictionsRes.ok) throw new Error('Error');
       const [matchesData, rankingsData, predictionsData] = await Promise.all([
@@ -197,6 +190,7 @@ export default function Dashboard() {
       setMatches(matchesData);
       setRankings(rankingsData);
       setPredictions(predictionsData);
+      if (publicBetsRes.ok) setPublicBets(await publicBetsRes.json());
       setLoading(false);
       if (rankingsData.length > 0) {
         const tokenData = JSON.parse(atob(token.split('.')[1]));
@@ -865,14 +859,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {loadingBets && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)',
-          zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <div style={{ background: 'white', borderRadius: 12, padding: '20px 32px', fontWeight: 600 }}>Cargando...</div>
-        </div>
-      )}
     </div>
   );
 }
