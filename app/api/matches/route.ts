@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initDb, getDatabase } from '@/lib/db';
 import { syncWithESPN } from '@/lib/espn-sync';
+import { maybeSyncResults } from '@/lib/auto-sync';
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,7 @@ export async function GET(_: NextRequest) {
     initDb();
     await maybeAutoSync();
     const db = getDatabase();
+    maybeSyncResults(db); // fire-and-forget: actualiza resultados y puntos si hay partidos activos
 
     const matches = db.prepare('SELECT * FROM matches ORDER BY date ASC').all();
 

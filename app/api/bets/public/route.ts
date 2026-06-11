@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initDb, getDatabase } from '@/lib/db';
 import { verifyAuth } from '@/lib/middleware';
+import { maybeSyncResults } from '@/lib/auto-sync';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,7 @@ export async function GET(req: NextRequest) {
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const db = getDatabase();
+    maybeSyncResults(db); // fire-and-forget
     const now = Date.now();
 
     const rows = db.prepare(`

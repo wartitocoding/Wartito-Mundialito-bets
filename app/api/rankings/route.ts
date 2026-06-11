@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initDb, getDatabase } from '@/lib/db';
+import { maybeSyncResults } from '@/lib/auto-sync';
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +8,7 @@ export async function GET(_: NextRequest) {
   try {
     initDb();
     const db = getDatabase();
+    maybeSyncResults(db); // fire-and-forget
 
     const rankings = db
       .prepare(`
