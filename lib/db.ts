@@ -133,6 +133,7 @@ export function initDb() {
     { name: 'predictions.isWildcard', sql: 'ALTER TABLE predictions ADD COLUMN isWildcard INTEGER DEFAULT 0' },
     { name: 'predictions.betType', sql: "ALTER TABLE predictions ADD COLUMN betType TEXT DEFAULT 'exact'" },
     { name: 'backfill betType', sql: "UPDATE predictions SET betType = 'exact' WHERE betType IS NULL" },
+    { name: 'users.manualPoints', sql: 'ALTER TABLE users ADD COLUMN manualPoints INTEGER DEFAULT 0' },
   ];
 
   for (const mig of migrations) {

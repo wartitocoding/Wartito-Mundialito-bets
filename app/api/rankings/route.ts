@@ -20,8 +20,8 @@ export async function GET(_: NextRequest) {
           u.championPoints,
           COUNT(p.id) as totalPredictions,
           SUM(CASE WHEN p.points > 0 THEN 1 ELSE 0 END) as correctPredictions,
-          SUM(p.points) as matchPoints,
-          (COALESCE(SUM(p.points), 0) + COALESCE(u.championPoints, 0)) as totalPoints
+          (COALESCE(SUM(p.points), 0) + COALESCE(u.manualPoints, 0)) as matchPoints,
+          (COALESCE(SUM(p.points), 0) + COALESCE(u.manualPoints, 0) + COALESCE(u.championPoints, 0)) as totalPoints
         FROM users u
         LEFT JOIN predictions p ON u.id = p.userId
         GROUP BY u.id
