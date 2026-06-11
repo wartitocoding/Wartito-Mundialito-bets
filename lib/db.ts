@@ -17,6 +17,7 @@ let db: Database.Database;
 
 function getDb() {
   if (!db) {
+    console.log(`🗄️  Abriendo DB en: ${dbPath} (DATABASE_PATH=${process.env.DATABASE_PATH || 'no configurada'})`);
     db = new Database(dbPath);
     db.pragma("journal_mode = WAL");
   }
