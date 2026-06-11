@@ -49,7 +49,8 @@ export function createUser(email: string, password: string, name: string, champi
       "INSERT INTO users (email, password, name, championPrediction, createdAt) VALUES (?, ?, ?, ?, ?)"
     ).run(email, hashedPassword, name, championPrediction, Date.now());
     return true;
-  } catch {
+  } catch (err) {
+    console.error('createUser SQL error:', err);
     return false;
   }
 }

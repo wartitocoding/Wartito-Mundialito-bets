@@ -98,15 +98,22 @@ export function initDb() {
     );
   `);
 
-  // Migration: add isWildcard to predictions (safe to re-run)
-  try {
-    database.exec('ALTER TABLE predictions ADD COLUMN isWildcard INTEGER DEFAULT 0');
-  } catch { /* column already exists */ }
+  // ─── Migrations safe-to-rerun ─────────────────────────────────────
+  // CREATE TABLE IF NOT EXISTS no actualiza schemas existentes; estas
+  // ALTER TABLE rellenan columnas en DBs creadas con schemas viejos.
 
-  // Migration: add betType ('exact' | 'draw' | 'team1' | 'team2')
-  try {
-    database.exec("ALTER TABLE predictions ADD COLUMN betType TEXT DEFAULT 'exact'");
-  } catch { /* column already exists */ }
+  // users.championPrediction / championPoints
+  try { database.exec('ALTER TABLE users ADD COLUMN championPrediction TEXT'); } catch {}
+  try { database.exec('ALTER TABLE users ADD COLUMN championPoints INTEGER DEFAULT 0'); } catch {}
+
+  // predictions.isWildcard
+  try { database.exec('ALTER TABLE predictions ADD COLUMN isWildcard INTEGER DEFAULT 0'); } catch {}
+
+  // predictions.betType ('exact' | 'draw' | 'team1' | 'team2')
+  try { database.exec("ALTER TABLE predictions ADD COLUMN betType TEXT DEFAULT 'exact'"); } catch {}
+
+  // Rellenar betType para apuestas viejas con valor por defecto
+  try { database.exec("UPDATE predictions SET betType = 'exact' WHERE betType IS NULL"); } catch {}
 
   // Comentarios en partidos
   database.exec(`
