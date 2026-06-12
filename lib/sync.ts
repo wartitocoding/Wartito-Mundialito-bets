@@ -1,5 +1,6 @@
 import { getDatabase, initDb } from './db';
 import { fetchWorldcupMatches, fetchLiveMatches } from './api-football';
+import { calculatePoints, type BetType } from './scoring';
 
 interface SyncResult {
   newMatches: number;
@@ -161,23 +162,17 @@ function calculateMatchPoints(
       .all(match.id);
 
     for (const prediction of predictions) {
-      let points = 0;
-
-      // Puntuación exacta: 3 puntos
-      if (
-        prediction.prediction1 === actualGoals1 &&
-        prediction.prediction2 === actualGoals2
-      ) {
-        points = 3;
-      }
-      // Ganador correcto: 1 punto
-      else if (
-        (actualGoals1 > actualGoals2 && prediction.prediction1 > prediction.prediction2) ||
-        (actualGoals1 < actualGoals2 && prediction.prediction1 < prediction.prediction2) ||
-        (actualGoals1 === actualGoals2 && prediction.prediction1 === prediction.prediction2)
-      ) {
-        points = 1;
-      }
+      // Fuente única de verdad: lib/scoring.ts (3 exacto / 2 empate / 1 ganador, x2 comodín)
+      const points = calculatePoints(
+        {
+          betType: (prediction.betType || 'exact') as BetType,
+          prediction1: prediction.prediction1,
+          prediction2: prediction.prediction2,
+          isWildcard: prediction.isWildcard,
+        },
+        actualGoals1,
+        actualGoals2,
+      );
 
       db.prepare('UPDATE predictions SET points = ? WHERE id = ?').run(
         points,

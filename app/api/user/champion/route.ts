@@ -22,6 +22,16 @@ export async function POST(req: NextRequest) {
 
     const db = getDatabase();
 
+    // Bloqueo: si el usuario YA eligió un campeón real, no se puede cambiar.
+    const current = db.prepare('SELECT championPrediction FROM users WHERE id = ?').get(auth.userId) as { championPrediction: string | null } | undefined;
+    const alreadyChosen = current?.championPrediction && current.championPrediction !== 'Por definir';
+    if (alreadyChosen) {
+      return NextResponse.json(
+        { error: 'Ya elegiste tu campeón y no se puede cambiar.', championPrediction: current!.championPrediction },
+        { status: 409 }
+      );
+    }
+
     // Equipos válidos = los que aparecen en algún partido del torneo
     const teams = db.prepare(`
       SELECT DISTINCT team FROM (

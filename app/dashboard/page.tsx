@@ -141,7 +141,6 @@ export default function Dashboard() {
   } | null>(null);
   const [championPicker, setChampionPicker] = useState('');
   const [savingChampion, setSavingChampion] = useState(false);
-  const [showChampionEdit, setShowChampionEdit] = useState(false);
 
   const saveChampion = async () => {
     if (!championPicker) return;
@@ -155,7 +154,6 @@ export default function Dashboard() {
       });
       if (res.ok) {
         setUser((u: any) => ({ ...u, championPrediction: championPicker }));
-        setShowChampionEdit(false);
         if (token) fetchData(token);
       }
     } finally {
@@ -351,7 +349,7 @@ export default function Dashboard() {
                 ¿Quién va a ser el campeón del mundial?
               </div>
               <div style={{ fontSize: '0.85rem', color: '#b45309' }}>
-                Elige tu campeón para sumar <strong>+10 puntos</strong> si aciertas. Te falta definirlo.
+                Elige tu campeón para sumar <strong>+10 puntos</strong> si aciertas. ⚠️ Una vez elegido <strong>no se puede cambiar</strong>.
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -383,33 +381,15 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Campeón ya elegido: mostrar con opción de cambiar */}
+        {/* Campeón ya elegido: bloqueado (no se puede cambiar) */}
         {!needsChampion && user?.championPrediction && (
-          <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
               Tu campeón: <strong style={{ color: 'var(--navy)' }}>🏆 {user.championPrediction}</strong>
             </span>
-            {!showChampionEdit ? (
-              <button onClick={() => { setChampionPicker(user.championPrediction); setShowChampionEdit(true); }}
-                style={{ fontSize: '0.78rem', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', textDecoration: 'underline' }}>
-                cambiar
-              </button>
-            ) : (
-              <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                <select value={championPicker} onChange={(e) => setChampionPicker(e.target.value)}
-                  style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid var(--border)', fontSize: '0.82rem', fontFamily: 'inherit' }}>
-                  {tournamentTeams.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
-                <button onClick={saveChampion} disabled={savingChampion}
-                  style={{ padding: '6px 12px', borderRadius: 7, border: 'none', background: 'var(--navy)', color: 'white', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  {savingChampion ? '...' : 'Guardar'}
-                </button>
-                <button onClick={() => setShowChampionEdit(false)}
-                  style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'white', fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  cancelar
-                </button>
-              </span>
-            )}
+            <span style={{ fontSize: '0.72rem', color: 'var(--muted)', background: '#f1f5f9', borderRadius: 6, padding: '2px 8px', fontWeight: 600 }}>
+              🔒 definitivo
+            </span>
           </div>
         )}
 

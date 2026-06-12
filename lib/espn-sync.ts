@@ -13,6 +13,7 @@
 
 import Database from 'better-sqlite3';
 import { translateTeam, deduceStage } from './wc2026-data';
+import { calculatePoints, type BetType } from './scoring';
 
 const ESPN_URL = 'https://site.web.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard';
 
@@ -153,11 +154,8 @@ export async function syncWithESPN(db: Database.Database): Promise<SyncResult> {
 
 /**
  * Recalcula los puntos de todas las apuestas de un partido finalizado.
- * Replica exactamente la lógica de scripts/update-results.js
- *  - 3 pts marcador exacto
- *  - 2 pts empate acertado
- *  - 1 pt ganador acertado
- *  - x2 si el jugador usó comodín
+ * Usa la única fuente de verdad de scoring: lib/scoring.ts (calculatePoints)
+ *  - 3 pts marcador exacto · 2 pts empate · 1 pt ganador · x2 con comodín
  */
 function recalcPointsFor(db: Database.Database, externalId: string, g1: number, g2: number) {
   const match = db.prepare('SELECT id FROM matches WHERE externalId = ?').get(externalId) as any;
@@ -167,20 +165,10 @@ function recalcPointsFor(db: Database.Database, externalId: string, g1: number, 
     .all(match.id) as any[];
 
   for (const p of preds) {
-    const betType = p.betType || 'exact';
-    let points = 0;
-    if (betType === 'exact') {
-      if (p.prediction1 === g1 && p.prediction2 === g2) points = 3;
-      else if (g1 === g2 && p.prediction1 === p.prediction2) points = 2;
-      else if ((g1 > g2 && p.prediction1 > p.prediction2) || (g1 < g2 && p.prediction1 < p.prediction2)) points = 1;
-    } else if (betType === 'draw') {
-      if (g1 === g2) points = 2;
-    } else if (betType === 'team1') {
-      if (g1 > g2) points = 1;
-    } else if (betType === 'team2') {
-      if (g2 > g1) points = 1;
-    }
-    if (p.isWildcard) points *= 2;
+    const points = calculatePoints(
+      { betType: (p.betType || 'exact') as BetType, prediction1: p.prediction1, prediction2: p.prediction2, isWildcard: p.isWildcard },
+      g1, g2,
+    );
     db.prepare('UPDATE predictions SET points = ? WHERE id = ?').run(points, p.id);
   }
 }
