@@ -753,10 +753,11 @@ export default function Dashboard() {
             )}
 
             <div style={{ marginTop: 4, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '14px 18px', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-              <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🎯 <strong>Marcador exacto:</strong> 3 pts</div>
-              <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🤝 <strong>Empate acertado:</strong> 2 pts</div>
-              <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>✅ <strong>Ganador acertado:</strong> 1 pt</div>
+              <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🎯 <strong>Marcador exacto:</strong> 3 pts <span style={{ color: '#64748b' }}>(o nada — hay que clavarlo)</span></div>
+              <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🤝 <strong>Empate:</strong> 2 pts <span style={{ color: '#64748b' }}>(solo fase de grupos)</span></div>
+              <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>✅ <strong>Ganador:</strong> 1 pt</div>
               <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🏆 <strong>Campeón del mundial:</strong> +10 pts bonus</div>
+              <div style={{ fontSize: '0.78rem', color: '#64748b', flexBasis: '100%' }}>⚽ Fases finales (octavos→final): solo <strong>Ganador</strong> o <strong>Marcador exacto</strong>; el ganador incluye alargue y penales.</div>
             </div>
           </div>
         )}

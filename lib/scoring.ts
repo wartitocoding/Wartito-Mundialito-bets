@@ -2,21 +2,26 @@
  * Cálculo de puntos para una apuesta, según el tipo de apuesta.
  *
  * Tipos:
- *  - 'exact'  → marcador exacto (apuesta agresiva, máx 3 pts)
- *  - 'draw'   → solo empate (2 pts si cualquier empate)
- *  - 'team1'  → solo ganador team1 (1 pt si team1 gana, cualquier marcador)
+ *  - 'exact'  → marcador exacto: TODO o NADA. 3 pts solo si clava el marcador.
+ *  - 'draw'   → solo empate (2 pts si hay cualquier empate)
+ *  - 'team1'  → solo ganador team1 (1 pt si team1 gana)
  *  - 'team2'  → solo ganador team2 (1 pt si team2 gana)
  *
  * Tabla:
  *   exact + marcador clavado     → 3 pts
- *   exact + empate (no exacto)   → 2 pts
- *   exact + ganador correcto     → 1 pt
+ *   exact + NO clavado           → 0 pts  (regla general: exacto es todo-o-nada)
  *   draw  + empate cualquiera    → 2 pts
  *   team1 + team1 gana           → 1 pt
  *   team2 + team2 gana           → 1 pt
  *   cualquier otro caso          → 0 pts
  *
  * Si la apuesta usó el comodín (isWildcard = 1), se dobla el puntaje final.
+ *
+ * NOTA fases finales (octavos→final): el botón "empate" se oculta y el
+ * ganador se decide incluyendo 90'+alargue+penales (quién avanza). Esa lógica
+ * de "ganador = quien avanza" se maneja al guardar el resultado del partido
+ * (lib/espn-sync), no acá: a esta función le llega el marcador final y, para
+ * team1/team2, basta con que ese equipo figure como ganador del cruce.
  */
 export type BetType = 'exact' | 'draw' | 'team1' | 'team2';
 
@@ -37,12 +42,8 @@ export function calculatePoints(
 
   switch (betType) {
     case 'exact':
+      // Todo-o-nada: solo suma si clava el marcador exacto.
       if (p1 === actual1 && p2 === actual2) points = 3;
-      else if (actual1 === actual2 && p1 === p2) points = 2;
-      else if (
-        (actual1 > actual2 && p1 > p2) ||
-        (actual1 < actual2 && p1 < p2)
-      ) points = 1;
       break;
     case 'draw':
       if (actual1 === actual2) points = 2;
