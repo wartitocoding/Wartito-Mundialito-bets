@@ -348,51 +348,6 @@ export default function Dashboard() {
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
 
-        {/* ====== BANNER: ELEGIR CAMPEÓN ====== */}
-        {needsChampion && tournamentTeams.length > 0 && (
-          <div style={{
-            background: 'linear-gradient(120deg, #fffbeb 0%, #fef3c7 100%)',
-            border: '2px solid #fcd34d', borderRadius: 14, padding: '20px 22px', marginBottom: 24,
-            display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap',
-          }}>
-            <div style={{ fontSize: 36, lineHeight: 1 }}>🏆</div>
-            <div style={{ flex: 1, minWidth: 220 }}>
-              <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#92400e', marginBottom: 2 }}>
-                ¿Quién va a ser el campeón del mundial?
-              </div>
-              <div style={{ fontSize: '0.85rem', color: '#b45309' }}>
-                Elige tu campeón para sumar <strong>+10 puntos</strong> si aciertas. ⚠️ Una vez elegido <strong>no se puede cambiar</strong>.
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <select
-                value={championPicker}
-                onChange={(e) => setChampionPicker(e.target.value)}
-                style={{
-                  padding: '10px 14px', borderRadius: 9, border: '1px solid #d97706',
-                  fontSize: '0.9rem', fontWeight: 600, color: 'var(--navy)', background: 'white',
-                  minWidth: 180, fontFamily: 'inherit', cursor: 'pointer',
-                }}
-              >
-                <option value="">Selecciona un equipo...</option>
-                {tournamentTeams.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <button
-                onClick={saveChampion}
-                disabled={!championPicker || savingChampion}
-                style={{
-                  padding: '10px 20px', borderRadius: 9, border: 'none',
-                  background: !championPicker || savingChampion ? '#fcd34d' : '#d97706',
-                  color: 'white', fontWeight: 700, fontSize: '0.9rem',
-                  cursor: !championPicker || savingChampion ? 'default' : 'pointer', fontFamily: 'inherit',
-                }}
-              >
-                {savingChampion ? 'Guardando...' : 'Confirmar campeón'}
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Campeón ya elegido: bloqueado (no se puede cambiar) */}
         {!needsChampion && user?.championPrediction && (
           <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -924,6 +879,59 @@ export default function Dashboard() {
         )}
 
       </div>
+
+      {/* ====== MODAL OBLIGATORIO: ELEGIR CAMPEÓN ====== */}
+      {/* Bloquea toda la app hasta que el jugador elija campeón. Sin cerrar. */}
+      {needsChampion && tournamentTeams.length > 0 && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(8,18,31,0.78)',
+          backdropFilter: 'blur(5px)', zIndex: 200,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+        }}>
+          <div style={{
+            background: 'white', borderRadius: 18, padding: '34px 28px',
+            maxWidth: 440, width: '100%', textAlign: 'center',
+            boxShadow: '0 24px 70px rgba(0,0,0,0.45)',
+          }}>
+            <div style={{ fontSize: 52, lineHeight: 1, marginBottom: 10 }}>🏆</div>
+            <h2 style={{ fontWeight: 800, fontSize: '1.4rem', color: 'var(--navy)', margin: '0 0 8px', letterSpacing: '-0.02em' }}>
+              Elige tu campeón del mundial
+            </h2>
+            <p style={{ color: 'var(--muted)', fontSize: '0.9rem', lineHeight: 1.5, margin: '0 0 22px' }}>
+              Antes de empezar a jugar, tienes que elegir quién va a salir campeón.
+              Suma <strong style={{ color: '#d97706' }}>+10 puntos</strong> si aciertas.
+              <br />⚠️ Es <strong>definitivo</strong>: no se puede cambiar después.
+            </p>
+            <select
+              value={championPicker}
+              onChange={(e) => setChampionPicker(e.target.value)}
+              style={{
+                width: '100%', padding: '12px 14px', borderRadius: 10, border: '1.5px solid #d97706',
+                fontSize: '1rem', fontWeight: 600, color: 'var(--navy)', background: 'white',
+                fontFamily: 'inherit', cursor: 'pointer', marginBottom: 12,
+              }}
+            >
+              <option value="">Selecciona un equipo...</option>
+              {tournamentTeams.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <button
+              onClick={saveChampion}
+              disabled={!championPicker || savingChampion}
+              style={{
+                width: '100%', padding: '13px 0', borderRadius: 10, border: 'none',
+                background: !championPicker || savingChampion ? '#fcd34d' : '#d97706',
+                color: 'white', fontWeight: 800, fontSize: '1rem',
+                cursor: !championPicker || savingChampion ? 'default' : 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              {savingChampion ? 'Guardando...' : 'Confirmar mi campeón'}
+            </button>
+            <p style={{ fontSize: '0.75rem', color: 'var(--muted)', margin: '14px 0 0' }}>
+              No puedes usar la app hasta elegir tu campeón.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ====== MODAL: APUESTAS DEL PARTIDO ====== */}
       {matchBetsModal && (
