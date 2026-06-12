@@ -1,8 +1,10 @@
 import type Database from 'better-sqlite3';
 import { syncWithESPN } from './espn-sync';
 
-// Cooldowns distintos: más agresivo cuando hay partidos en vivo
-const COOLDOWN_LIVE_MS = 2 * 60 * 1000;   // 2 min si hay partido en vivo
+// Cooldowns distintos: más agresivo cuando hay partidos en vivo.
+// La ventana de sync es corta (~3 llamadas), así que 45s en vivo es seguro
+// y hace que los puntos aparezcan casi apenas termina el partido.
+const COOLDOWN_LIVE_MS = 45 * 1000;       // 45s si hay partido en vivo
 const COOLDOWN_IDLE_MS = 10 * 60 * 1000;  // 10 min si no hay nada activo
 
 let lastSync = 0;
@@ -39,8 +41,14 @@ export async function maybeSyncResults(db: Database.Database): Promise<void> {
   lastSync = now;
   syncing = true;
 
+  // Ventana corta: solo hoy ± 1 día (≈3 llamadas a ESPN en vez de 39).
+  // Así el sync de resultados es rápido y no satura ESPN aunque corra seguido.
+  const oneDay = 24 * 60 * 60 * 1000;
+  const startISO = new Date(now - oneDay).toISOString().slice(0, 10);
+  const endISO = new Date(now + oneDay).toISOString().slice(0, 10);
+
   // Fire-and-forget: no esperamos el resultado para no bloquear la response
-  syncWithESPN(db)
+  syncWithESPN(db, { startISO, endISO })
     .then(r => console.log(`✓ auto-sync: +${r.resultsUpdated} resultados, +${r.pointsRecalculated} puntos`))
     .catch(e => console.error('auto-sync error:', e))
     .finally(() => { syncing = false; });

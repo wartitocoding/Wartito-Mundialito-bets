@@ -237,7 +237,19 @@ export default function Dashboard() {
 
   const now = new Date();
   const nextMatches = matches.filter((m) => new Date(m.date) > now);
-  const finishedMatches = matches.filter((m) => m.result1 !== null || m.status === 'live');
+
+  // Historial de apuestas del jugador: cruza sus predicciones con los partidos.
+  const myBets = predictions
+    .map((pred) => ({ pred, match: matches.find((m) => m.id === pred.matchId) }))
+    .filter((x): x is { pred: Prediction; match: Match } => !!x.match);
+  const isResolved = (m: Match) => m.result1 !== null && m.result2 !== null;
+  const myPending = myBets
+    .filter((x) => !isResolved(x.match))
+    .sort((a, b) => new Date(a.match.date).getTime() - new Date(b.match.date).getTime());
+  const myResolved = myBets
+    .filter((x) => isResolved(x.match))
+    .sort((a, b) => new Date(b.match.date).getTime() - new Date(a.match.date).getTime());
+  const totalBetPoints = myResolved.reduce((s, x) => s + (x.pred.points || 0), 0);
 
   // Lista de equipos del torneo (para elegir campeón), derivada de los partidos.
   const tournamentTeams = Array.from(
@@ -279,7 +291,7 @@ export default function Dashboard() {
     { key: 'calendar' as const, label: '📅 Próximas 3 semanas', count: horizonPendingCount },
     { key: 'matches' as const, label: 'Partidos', count: nextMatches.length },
     { key: 'ranking' as const, label: 'Ranking', count: rankings.length },
-    { key: 'my-predictions' as const, label: 'Mis Apuestas', count: finishedMatches.length },
+    { key: 'my-predictions' as const, label: 'Mis Apuestas', count: predictions.length },
   ];
 
   return (
@@ -797,53 +809,115 @@ export default function Dashboard() {
         {/* ====== MY PREDICTIONS TAB ====== */}
         {activeTab === 'my-predictions' && (
           <div>
-            <div style={{ marginBottom: 20 }}>
-              <h2 style={{ fontWeight: 800, fontSize: '1.3rem', color: 'var(--navy)', margin: 0, letterSpacing: '-0.02em' }}>Mis apuestas</h2>
+            <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <h2 style={{ fontWeight: 800, fontSize: '1.3rem', color: 'var(--navy)', margin: 0, letterSpacing: '-0.02em' }}>Historial de mis apuestas</h2>
+              {myBets.length > 0 && (
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.8rem', background: '#f1f5f9', borderRadius: 8, padding: '6px 12px', fontWeight: 600, color: 'var(--navy)' }}>
+                    {myBets.length} apuesta{myBets.length !== 1 ? 's' : ''}
+                  </span>
+                  <span style={{ fontSize: '0.8rem', background: '#dcfce7', borderRadius: 8, padding: '6px 12px', fontWeight: 700, color: '#16a34a' }}>
+                    {totalBetPoints} pts ganados
+                  </span>
+                </div>
+              )}
             </div>
-            {finishedMatches.length === 0 ? (
+
+            {myBets.length === 0 ? (
               <div className="card" style={{ padding: 40, textAlign: 'center' }}>
-                <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
-                <p style={{ color: 'var(--muted)', margin: 0 }}>Todavía no se ha jugado nada, espera que arranque el mundial</p>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>🎲</div>
+                <p style={{ color: 'var(--muted)', margin: '0 0 16px' }}>Todavía no has hecho ninguna apuesta. Anda a la pestaña de partidos y apuesta.</p>
+                <button onClick={() => setActiveTab('calendar')} style={{ background: 'var(--navy)', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 9, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Ver partidos
+                </button>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {finishedMatches.map((match) => {
-                  const pred = predictions.find((p) => p.matchId === match.id);
-                  // isExact aplica solo a apuestas exactas con marcador clavado
-                  const isExact = pred && pred.betType === 'exact' && pred.prediction1 === match.result1 && pred.prediction2 === match.result2;
-                  const isCorrect = pred && !isExact && (pred.points || 0) > 0;
-                  const pts = pred?.points || 0;
-                  const accentColor = isExact ? '#10b981' : isCorrect ? '#3b82f6' : pts === 0 && pred ? '#ef4444' : 'var(--border)';
-                  return (
-                    <div key={match.id} className="card" onClick={() => openMatchBets(match)} style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16, borderLeft: `3px solid ${accentColor}`, cursor: 'pointer' }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}><span className="tag">{match.stage}</span></div>
-                        <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--navy)' }}>{match.team1} vs {match.team2}</div>
-                      </div>
-                      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-end' }}>
-                        <div style={{ textAlign: 'center' }}>
-                          <div style={{ fontSize: '0.6rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>Resultado</div>
-                          <div style={{ fontWeight: 800, fontSize: '2rem', color: 'var(--navy)', letterSpacing: '-0.05em', lineHeight: 1 }}>{match.result1} – {match.result2}</div>
-                        </div>
-                        <div style={{ textAlign: 'center' }}>
-                          <div style={{ fontSize: '0.6rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>Tu apuesta</div>
-                          <div style={{ color: pred ? 'var(--navy)' : 'var(--muted)' }}>
-                            {pred ? renderBet(pred, match.team1, match.team2, true) : <span style={{ fontSize: '2rem', fontWeight: 800 }}>—</span>}
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{ textAlign: 'center', minWidth: 56 }}>
-                        {pred?.isWildcard === 1 && (
-                          <div style={{ fontSize: '0.65rem', color: '#d97706', fontWeight: 700, marginBottom: 2 }}>⚡ x2</div>
-                        )}
-                        <div style={{ fontWeight: 800, fontSize: '2.2rem', letterSpacing: '-0.05em', lineHeight: 1, color: isExact ? '#10b981' : isCorrect ? '#3b82f6' : pts === 0 && pred ? '#ef4444' : 'var(--muted)' }}>
-                          {pts > 0 ? `+${pts}` : pred ? '0' : '—'}
-                        </div>
-                        <div style={{ fontSize: '0.62rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>pts</div>
-                      </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+                {/* Apuestas pendientes (partido aún sin resultado) */}
+                {myPending.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+                      ⏳ Pendientes ({myPending.length})
                     </div>
-                  );
-                })}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {myPending.map(({ pred, match }) => {
+                        const started = new Date(match.date) <= now || match.status === 'live';
+                        return (
+                          <div key={match.id} className="card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 16, borderLeft: '3px solid #f59e0b' }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', gap: 8, marginBottom: 4, alignItems: 'center' }}>
+                                <span className="tag">{match.stage}</span>
+                                <span style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>
+                                  {new Date(match.date).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                                {match.status === 'live' && <span style={{ fontSize: '0.68rem', color: '#ea580c', fontWeight: 700 }}>🔴 En vivo</span>}
+                              </div>
+                              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--navy)' }}>{match.team1} vs {match.team2}</div>
+                            </div>
+                            <div style={{ textAlign: 'center' }}>
+                              <div style={{ fontSize: '0.6rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>Tu apuesta {pred.isWildcard === 1 ? '⚡' : ''}</div>
+                              <div style={{ color: 'var(--navy)' }}>{renderBet(pred, match.team1, match.team2, true)}</div>
+                            </div>
+                            {!started ? (
+                              <Link href={`/predict/${match.id}`} style={{ fontSize: '0.75rem', color: '#2563eb', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap', border: '1px solid #bfdbfe', borderRadius: 7, padding: '6px 12px' }}>
+                                Cambiar
+                              </Link>
+                            ) : (
+                              <span style={{ fontSize: '0.72rem', color: 'var(--muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>🔒 cerrada</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Apuestas resueltas (con puntos ganados) */}
+                {myResolved.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+                      ✅ Resueltas ({myResolved.length})
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {myResolved.map(({ pred, match }) => {
+                        const isExact = pred.betType === 'exact' && pred.prediction1 === match.result1 && pred.prediction2 === match.result2;
+                        const pts = pred.points || 0;
+                        const isCorrect = !isExact && pts > 0;
+                        const accentColor = isExact ? '#10b981' : isCorrect ? '#3b82f6' : '#ef4444';
+                        const outcome = isExact ? '🎯 Marcador exacto' : isCorrect ? (pred.betType === 'draw' ? '🤝 Empate acertado' : '✅ Acertaste') : '❌ No acertaste';
+                        return (
+                          <div key={match.id} className="card" onClick={() => openMatchBets(match)} title="Ver apuestas de todos" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16, borderLeft: `3px solid ${accentColor}`, cursor: 'pointer' }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}><span className="tag">{match.stage}</span></div>
+                              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--navy)' }}>{match.team1} vs {match.team2}</div>
+                              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: accentColor, marginTop: 3 }}>{outcome}</div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 24, alignItems: 'flex-end' }}>
+                              <div style={{ textAlign: 'center' }}>
+                                <div style={{ fontSize: '0.6rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>Resultado</div>
+                                <div style={{ fontWeight: 800, fontSize: '2rem', color: 'var(--navy)', letterSpacing: '-0.05em', lineHeight: 1 }}>{match.result1} – {match.result2}</div>
+                              </div>
+                              <div style={{ textAlign: 'center' }}>
+                                <div style={{ fontSize: '0.6rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>Tu apuesta {pred.isWildcard === 1 ? '⚡' : ''}</div>
+                                <div style={{ color: 'var(--navy)' }}>{renderBet(pred, match.team1, match.team2, true)}</div>
+                              </div>
+                            </div>
+                            <div style={{ textAlign: 'center', minWidth: 56 }}>
+                              {pred.isWildcard === 1 && (
+                                <div style={{ fontSize: '0.65rem', color: '#d97706', fontWeight: 700, marginBottom: 2 }}>⚡ x2</div>
+                              )}
+                              <div style={{ fontWeight: 800, fontSize: '2.2rem', letterSpacing: '-0.05em', lineHeight: 1, color: accentColor }}>
+                                {pts > 0 ? `+${pts}` : '0'}
+                              </div>
+                              <div style={{ fontSize: '0.62rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>pts</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

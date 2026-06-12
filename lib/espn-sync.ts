@@ -61,13 +61,24 @@ export interface SyncResult {
   errors: string[];
 }
 
-export async function syncWithESPN(db: Database.Database): Promise<SyncResult> {
+/** Límites del torneo. Por defecto se escanea todo; el auto-sync de
+ *  resultados pasa una ventana corta (hoy ± 1 día) para ser rápido y liviano. */
+const WC_START = '2026-06-11';
+const WC_END = '2026-07-19';
+
+export async function syncWithESPN(
+  db: Database.Database,
+  opts?: { startISO?: string; endISO?: string },
+): Promise<SyncResult> {
   const result: SyncResult = {
     daysScanned: 0, inserted: 0, updated: 0,
     resultsUpdated: 0, pointsRecalculated: 0, errors: [],
   };
 
-  const days = dateRange('2026-06-11', '2026-07-19');
+  // Acota el rango a los límites del torneo (evita escanear días inválidos).
+  const start = (opts?.startISO && opts.startISO > WC_START) ? opts.startISO : WC_START;
+  const end = (opts?.endISO && opts.endISO < WC_END) ? opts.endISO : WC_END;
+  const days = dateRange(start, end);
   const allEvents: ESPNEvent[] = [];
 
   for (const day of days) {
