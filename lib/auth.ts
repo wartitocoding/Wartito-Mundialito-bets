@@ -1,8 +1,16 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { getDatabase } from "./db";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-this";
+// El secreto SIEMPRE viene de la variable de entorno. Si falta, usamos uno
+// aleatorio por arranque (las sesiones se invalidan al reiniciar) en vez de un
+// valor fijo: así nunca se usa un secreto público/adivinable que permitiría
+// falsificar tokens de cualquier usuario.
+const JWT_SECRET = process.env.JWT_SECRET || (() => {
+  console.warn("⚠️  JWT_SECRET no está configurada. Usando un secreto aleatorio temporal; configúrala en producción para mantener las sesiones.");
+  return crypto.randomBytes(32).toString("hex");
+})();
 
 export async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
