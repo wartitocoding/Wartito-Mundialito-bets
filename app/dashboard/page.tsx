@@ -139,6 +139,29 @@ export default function Dashboard() {
     match: Match;
     bets: { betType: string; prediction1: number; prediction2: number; isWildcard: number; points: number; userName: string }[];
   } | null>(null);
+  const [championPicker, setChampionPicker] = useState('');
+  const [savingChampion, setSavingChampion] = useState(false);
+  const [showChampionEdit, setShowChampionEdit] = useState(false);
+
+  const saveChampion = async () => {
+    if (!championPicker) return;
+    setSavingChampion(true);
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch('/api/user/champion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ championPrediction: championPicker }),
+      });
+      if (res.ok) {
+        setUser((u: any) => ({ ...u, championPrediction: championPicker }));
+        setShowChampionEdit(false);
+        if (token) fetchData(token);
+      }
+    } finally {
+      setSavingChampion(false);
+    }
+  };
 
   const openMatchBets = (match: Match) => {
     const matchDate = new Date(match.date);
@@ -217,6 +240,14 @@ export default function Dashboard() {
   const now = new Date();
   const nextMatches = matches.filter((m) => new Date(m.date) > now);
   const finishedMatches = matches.filter((m) => m.result1 !== null || m.status === 'live');
+
+  // Lista de equipos del torneo (para elegir campeón), derivada de los partidos.
+  const tournamentTeams = Array.from(
+    new Set(matches.flatMap((m) => [m.team1, m.team2]))
+  ).sort((a, b) => a.localeCompare(b, 'es'));
+
+  // ¿El usuario todavía no eligió campeón? (cuentas nuevas quedan en "Por definir")
+  const needsChampion = !!user && (!user.championPrediction || user.championPrediction === 'Por definir');
 
   // Agrupar por las próximas 3 semanas con partidos (relativo al próximo partido
   // disponible, no a la fecha del cliente — robusto si su sistema tiene mal la hora).
@@ -306,6 +337,81 @@ export default function Dashboard() {
       )}
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
+
+        {/* ====== BANNER: ELEGIR CAMPEÓN ====== */}
+        {needsChampion && tournamentTeams.length > 0 && (
+          <div style={{
+            background: 'linear-gradient(120deg, #fffbeb 0%, #fef3c7 100%)',
+            border: '2px solid #fcd34d', borderRadius: 14, padding: '20px 22px', marginBottom: 24,
+            display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap',
+          }}>
+            <div style={{ fontSize: 36, lineHeight: 1 }}>🏆</div>
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#92400e', marginBottom: 2 }}>
+                ¿Quién va a ser el campeón del mundial?
+              </div>
+              <div style={{ fontSize: '0.85rem', color: '#b45309' }}>
+                Elige tu campeón para sumar <strong>+10 puntos</strong> si aciertas. Te falta definirlo.
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <select
+                value={championPicker}
+                onChange={(e) => setChampionPicker(e.target.value)}
+                style={{
+                  padding: '10px 14px', borderRadius: 9, border: '1px solid #d97706',
+                  fontSize: '0.9rem', fontWeight: 600, color: 'var(--navy)', background: 'white',
+                  minWidth: 180, fontFamily: 'inherit', cursor: 'pointer',
+                }}
+              >
+                <option value="">Selecciona un equipo...</option>
+                {tournamentTeams.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <button
+                onClick={saveChampion}
+                disabled={!championPicker || savingChampion}
+                style={{
+                  padding: '10px 20px', borderRadius: 9, border: 'none',
+                  background: !championPicker || savingChampion ? '#fcd34d' : '#d97706',
+                  color: 'white', fontWeight: 700, fontSize: '0.9rem',
+                  cursor: !championPicker || savingChampion ? 'default' : 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                {savingChampion ? 'Guardando...' : 'Confirmar campeón'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Campeón ya elegido: mostrar con opción de cambiar */}
+        {!needsChampion && user?.championPrediction && (
+          <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
+              Tu campeón: <strong style={{ color: 'var(--navy)' }}>🏆 {user.championPrediction}</strong>
+            </span>
+            {!showChampionEdit ? (
+              <button onClick={() => { setChampionPicker(user.championPrediction); setShowChampionEdit(true); }}
+                style={{ fontSize: '0.78rem', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', textDecoration: 'underline' }}>
+                cambiar
+              </button>
+            ) : (
+              <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                <select value={championPicker} onChange={(e) => setChampionPicker(e.target.value)}
+                  style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid var(--border)', fontSize: '0.82rem', fontFamily: 'inherit' }}>
+                  {tournamentTeams.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <button onClick={saveChampion} disabled={savingChampion}
+                  style={{ padding: '6px 12px', borderRadius: 7, border: 'none', background: 'var(--navy)', color: 'white', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  {savingChampion ? '...' : 'Guardar'}
+                </button>
+                <button onClick={() => setShowChampionEdit(false)}
+                  style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'white', fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  cancelar
+                </button>
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', marginBottom: 28, overflowX: 'auto' }}>
