@@ -34,6 +34,7 @@ if (!process.env.DATABASE_PATH && !dbPath.startsWith("/data")) {
 }
 
 let db: Database.Database;
+let initialized = false;
 
 function getDb() {
   if (!db) {
@@ -46,6 +47,11 @@ function getDb() {
 
 export function initDb() {
   const database = getDb();
+
+  // El schema y las migraciones solo necesitan correr UNA vez por proceso.
+  // initDb() se llama en cada request; sin este guard, se reejecutaban las
+  // migraciones (y un write de backfill) en cada llamada — puro desperdicio.
+  if (initialized) return database;
 
   // Usuarios
   database.exec(`
@@ -221,6 +227,7 @@ export function initDb() {
     );
   `);
 
+  initialized = true;
   return database;
 }
 
