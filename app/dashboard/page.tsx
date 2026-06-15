@@ -261,10 +261,14 @@ export default function Dashboard() {
 
   // Agrupar por las próximas 3 semanas con partidos (relativo al próximo partido
   // disponible, no a la fecha del cliente — robusto si su sistema tiene mal la hora).
+  // En el calendario solo mostramos partidos NO jugados (por jugar o en vivo),
+  // para no ensuciar la vista y la búsqueda. Los ya jugados quedan en "Mis
+  // Apuestas" y siguen accesibles al hacer clic para ver resultados/apuestas.
+  const notPlayed = (m: Match) => m.result1 === null && m.status !== 'finished';
   const weeksWithDays = groupMatchesByWeek(matches, now, 3).map(w => {
     const wkMatches = matches.filter(m => {
       const d = new Date(m.date);
-      return d >= w.monday && d <= w.sunday;
+      return notPlayed(m) && d >= w.monday && d <= w.sunday;
     }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     const days: { date: Date; matches: Match[] }[] = [];
