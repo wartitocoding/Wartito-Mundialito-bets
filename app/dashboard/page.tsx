@@ -12,7 +12,27 @@ interface Match {
   date: string;
   result1: number | null;
   result2: number | null;
+  liveScore1?: number | null;
+  liveScore2?: number | null;
   status: string;
+}
+
+// Puntos provisionales/finales de una apuesta dado un marcador (misma regla
+// que lib/scoring.ts: exacto=3 todo-o-nada, empate=2, ganador=1, comodín x2).
+function pointsFor(bet: { betType: string; prediction1: number; prediction2: number; isWildcard: number }, s1: number, s2: number): number {
+  let p = 0;
+  if (bet.betType === 'exact') { if (bet.prediction1 === s1 && bet.prediction2 === s2) p = 3; }
+  else if (bet.betType === 'draw') { if (s1 === s2) p = 2; }
+  else if (bet.betType === 'team1') { if (s1 > s2) p = 1; }
+  else if (bet.betType === 'team2') { if (s2 > s1) p = 1; }
+  return bet.isWildcard ? p * 2 : p;
+}
+
+function betText(b: { betType: string; prediction1: number; prediction2: number }, team1: string, team2: string): string {
+  if (b.betType === 'draw') return '🤝 Empate';
+  if (b.betType === 'team1') return `🏆 ${team1}`;
+  if (b.betType === 'team2') return `🏆 ${team2}`;
+  return `🎯 ${b.prediction1}–${b.prediction2}`;
 }
 
 interface Ranking {
@@ -133,7 +153,7 @@ export default function Dashboard() {
   const [publicBets, setPublicBets] = useState<Record<number, PublicBet[]>>({});
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'calendar' | 'matches' | 'ranking' | 'my-predictions'>('calendar');
+  const [activeTab, setActiveTab] = useState<'calendar' | 'matches' | 'resultados' | 'ranking' | 'my-predictions'>('calendar');
   const [prevRankings, setPrevRankings] = useState<{[id: number]: number}>({});
   const [matchBetsModal, setMatchBetsModal] = useState<{
     match: Match;
@@ -291,9 +311,18 @@ export default function Dashboard() {
   ).length;
   const myRankPos = rankings.findIndex(r => r.id === user?.id) + 1;
 
+  // Resultados: partidos en vivo y finalizados (con sus apuestas desde publicBets)
+  const liveMatchesList = matches
+    .filter(m => m.status === 'live')
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const playedMatchesList = matches
+    .filter(m => m.result1 !== null && m.result2 !== null)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
   const tabs = [
     { key: 'calendar' as const, label: '📅 Próximas 3 semanas', count: horizonPendingCount },
     { key: 'matches' as const, label: 'Partidos', count: nextMatches.length },
+    { key: 'resultados' as const, label: 'Resultados', count: liveMatchesList.length + playedMatchesList.length },
     { key: 'ranking' as const, label: 'Ranking', count: rankings.length },
     { key: 'my-predictions' as const, label: 'Mis Apuestas', count: predictions.length },
   ];
@@ -649,6 +678,123 @@ export default function Dashboard() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ====== RESULTADOS TAB (en vivo + finalizados) ====== */}
+        {activeTab === 'resultados' && (
+          <div>
+            <div style={{ marginBottom: 20 }}>
+              <h2 style={{ fontWeight: 800, fontSize: '1.3rem', color: 'var(--navy)', margin: 0, letterSpacing: '-0.02em' }}>Resultados</h2>
+            </div>
+
+            {liveMatchesList.length === 0 && playedMatchesList.length === 0 ? (
+              <div className="card" style={{ padding: 40, textAlign: 'center' }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>⚽</div>
+                <p style={{ color: 'var(--muted)', margin: 0 }}>Todavía no hay partidos jugados. Cuando empiecen, aparecen acá.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+                {liveMatchesList.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#ea580c', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>🔴 En vivo</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {liveMatchesList.map((match) => {
+                        const bets = (publicBets[match.id] || []).slice();
+                        const hasScore = match.liveScore1 != null && match.liveScore2 != null;
+                        const myBet = bets.find(b => b.userName === user?.name);
+                        const myProv = myBet && hasScore ? pointsFor(myBet, match.liveScore1!, match.liveScore2!) : null;
+                        const ordered = hasScore
+                          ? bets.sort((a, b) => pointsFor(b, match.liveScore1!, match.liveScore2!) - pointsFor(a, match.liveScore1!, match.liveScore2!))
+                          : bets;
+                        return (
+                          <div key={match.id} className="card" style={{ borderLeft: '3px solid #f97316', padding: '14px 16px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                              <span className="tag">{match.stage}</span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.72rem', fontWeight: 700, color: '#ea580c' }}>
+                                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ea580c', display: 'inline-block', animation: 'pulse 1.4s infinite' }} />EN VIVO
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, margin: '6px 0 10px' }}>
+                              <span style={{ flex: 1, textAlign: 'right', fontWeight: 700, fontSize: '0.95rem', color: 'var(--navy)' }}>{match.team1}</span>
+                              <span style={{ fontWeight: 800, fontSize: '1.9rem', letterSpacing: '-0.05em', color: 'var(--navy)', lineHeight: 1 }}>
+                                {hasScore ? `${match.liveScore1} – ${match.liveScore2}` : <span style={{ fontSize: '0.9rem', color: 'var(--muted)', fontWeight: 600 }}>en juego</span>}
+                              </span>
+                              <span style={{ flex: 1, fontWeight: 700, fontSize: '0.95rem', color: 'var(--navy)' }}>{match.team2}</span>
+                            </div>
+                            {myBet && myProv != null && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '7px 11px', marginBottom: 10 }}>
+                                <span style={{ fontSize: '0.78rem', color: '#9a3412', fontWeight: 600 }}>⚡ Si termina así, ganas</span>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#ea580c' }}>{myProv > 0 ? `+${myProv}` : '0'} pts</span>
+                              </div>
+                            )}
+                            {bets.length === 0 ? (
+                              <div style={{ fontSize: '0.8rem', color: 'var(--muted)', textAlign: 'center', padding: '4px 0' }}>Nadie apostó en este partido</div>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                {ordered.map((b, i) => {
+                                  const isMe = b.userName === user?.name;
+                                  const prov = hasScore ? pointsFor(b, match.liveScore1!, match.liveScore2!) : null;
+                                  return (
+                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: isMe ? '7px 11px' : '3px 11px', background: isMe ? '#eff6ff' : 'transparent', borderRadius: 8 }}>
+                                      <span style={{ fontSize: '0.82rem', fontWeight: isMe ? 700 : 400, color: isMe ? '#1e40af' : '#475569' }}>{isMe ? 'Tú' : b.userName} · {betText(b, match.team1, match.team2)}{b.isWildcard ? ' ⚡' : ''}</span>
+                                      {prov != null && <span style={{ fontSize: '0.82rem', fontWeight: 700, color: prov > 0 ? '#16a34a' : '#94a3b8' }}>{prov > 0 ? `+${prov}` : '0'}</span>}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {playedMatchesList.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Finalizados</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {playedMatchesList.map((match) => {
+                        const bets = (publicBets[match.id] || []).slice().sort((a, b) => (b.points || 0) - (a.points || 0));
+                        const topPts = bets.length ? (bets[0].points || 0) : 0;
+                        return (
+                          <div key={match.id} className="card" style={{ borderLeft: '3px solid #cbd5e1', padding: '14px 16px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                              <span className="tag">{match.stage}</span>
+                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--muted)' }}>Finalizado</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, margin: '6px 0 10px' }}>
+                              <span style={{ flex: 1, textAlign: 'right', fontWeight: 700, fontSize: '0.95rem', color: 'var(--navy)' }}>{match.team1}</span>
+                              <span style={{ fontWeight: 800, fontSize: '1.9rem', letterSpacing: '-0.05em', color: 'var(--navy)', lineHeight: 1 }}>{match.result1} – {match.result2}</span>
+                              <span style={{ flex: 1, fontWeight: 700, fontSize: '0.95rem', color: 'var(--navy)' }}>{match.team2}</span>
+                            </div>
+                            {bets.length === 0 ? (
+                              <div style={{ fontSize: '0.8rem', color: 'var(--muted)', textAlign: 'center', padding: '4px 0' }}>Nadie apostó en este partido</div>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                {bets.map((b, i) => {
+                                  const isMe = b.userName === user?.name;
+                                  const pts = b.points || 0;
+                                  const isTop = pts > 0 && pts === topPts;
+                                  return (
+                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: isMe ? '7px 11px' : '3px 11px', background: isMe ? '#f8fafc' : 'transparent', borderRadius: 8 }}>
+                                      <span style={{ fontSize: '0.82rem', fontWeight: isMe ? 700 : 400, color: isMe ? 'var(--navy)' : '#475569' }}>{isTop ? '🥇 ' : ''}{isMe ? 'Tú' : b.userName} · {betText(b, match.team1, match.team2)}{b.isWildcard ? ' ⚡' : ''}</span>
+                                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: pts > 0 ? '#16a34a' : '#94a3b8' }}>{pts > 0 ? `+${pts}` : '0'}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -140,6 +140,8 @@ export function initDb() {
     { name: 'predictions.betType', sql: "ALTER TABLE predictions ADD COLUMN betType TEXT DEFAULT 'exact'" },
     { name: 'backfill betType', sql: "UPDATE predictions SET betType = 'exact' WHERE betType IS NULL" },
     { name: 'users.manualPoints', sql: 'ALTER TABLE users ADD COLUMN manualPoints INTEGER DEFAULT 0' },
+    { name: 'matches.liveScore1', sql: 'ALTER TABLE matches ADD COLUMN liveScore1 INTEGER' },
+    { name: 'matches.liveScore2', sql: 'ALTER TABLE matches ADD COLUMN liveScore2 INTEGER' },
   ];
 
   for (const mig of migrations) {

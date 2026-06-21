@@ -93,14 +93,14 @@ export async function syncWithESPN(
   }
 
   const upsertNew = db.prepare(`
-    INSERT INTO matches (externalId, team1, team2, stage, date, result1, result2, status, createdAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO matches (externalId, team1, team2, stage, date, result1, result2, liveScore1, liveScore2, status, createdAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const updateFixture = db.prepare(`
     UPDATE matches SET team1 = ?, team2 = ?, stage = ?, date = ? WHERE externalId = ?
   `);
   const updateResult = db.prepare(`
-    UPDATE matches SET result1 = ?, result2 = ?, status = ? WHERE externalId = ?
+    UPDATE matches SET result1 = ?, result2 = ?, liveScore1 = ?, liveScore2 = ?, status = ? WHERE externalId = ?
   `);
 
   for (const ev of allEvents) {
@@ -118,6 +118,11 @@ export async function syncWithESPN(
       const state = comp.status.type.state;
       const result1 = completed ? parseInt(home.score, 10) : null;
       const result2 = completed ? parseInt(away.score, 10) : null;
+      // Marcador "en vivo": el score actual que reporta ESPN aunque el partido
+      // no haya terminado. Se guarda aparte para no confundir "partido finalizado"
+      // (que se sigue detectando por result1/result2 != null).
+      const live1 = home.score != null && home.score !== '' ? parseInt(home.score, 10) : null;
+      const live2 = away.score != null && away.score !== '' ? parseInt(away.score, 10) : null;
       const status =
         completed ? 'finished'
         : state === 'in' ? 'live'
@@ -126,7 +131,7 @@ export async function syncWithESPN(
       const existing = db.prepare('SELECT * FROM matches WHERE externalId = ?').get(ev.id) as any;
 
       if (!existing) {
-        upsertNew.run(ev.id, team1, team2, stage, dateUTC, result1, result2, status, Date.now());
+        upsertNew.run(ev.id, team1, team2, stage, dateUTC, result1, result2, live1, live2, status, Date.now());
         result.inserted++;
         if (completed) {
           recalcPointsFor(db, ev.id, result1!, result2!);
@@ -145,9 +150,11 @@ export async function syncWithESPN(
         const resultChanged =
           existing.result1 !== result1 ||
           existing.result2 !== result2 ||
+          existing.liveScore1 !== live1 ||
+          existing.liveScore2 !== live2 ||
           existing.status !== status;
         if (resultChanged) {
-          updateResult.run(result1, result2, status, ev.id);
+          updateResult.run(result1, result2, live1, live2, status, ev.id);
           if (completed) {
             recalcPointsFor(db, ev.id, result1!, result2!);
             result.pointsRecalculated++;
