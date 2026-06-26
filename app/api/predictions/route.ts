@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initDb, getDatabase } from '@/lib/db';
 import { verifyAuth } from '@/lib/middleware';
+import { isAsadoDate } from '@/lib/asado';
 
 export const dynamic = "force-dynamic";
 
@@ -98,25 +99,50 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No puedes apostar en partidos que ya comenzaron' }, { status: 400 });
     }
 
+    // ── Modo Asado (solo para partidos del sábado 27): solo marcador exacto ──
+    const isAsado = isAsadoDate(match.date);
+    if (isAsado && betType !== 'exact') {
+      return NextResponse.json(
+        { error: '🔥 Día del Asado: hoy solo se permite marcador exacto.' },
+        { status: 400 }
+      );
+    }
+
     const existing = db
       .prepare('SELECT * FROM predictions WHERE userId = ? AND matchId = ?')
       .get(auth.userId, matchId) as any;
 
-    // Wildcard validation: only 1 per phase, excluding current match
+    // Validación del comodín. En partidos del asado el comodín es de UN SOLO USO
+    // en todo el día (no por fase). En el resto del torneo, 1 por fase (normal).
     if (isWildcard) {
-      const phase = getPhase(match.stage);
-      const otherWildcards = db.prepare(`
-        SELECT m.stage FROM predictions p
-        JOIN matches m ON p.matchId = m.id
-        WHERE p.userId = ? AND p.isWildcard = 1 AND p.matchId != ?
-      `).all(auth.userId, matchId) as { stage: string }[];
-
-      const phaseAlreadyUsed = otherWildcards.some(w => getPhase(w.stage) === phase);
-      if (phaseAlreadyUsed) {
-        return NextResponse.json(
-          { error: `Ya usaste el comodín en ${phaseName(phase)}. Solo puedes usar uno por fase.` },
-          { status: 400 }
-        );
+      if (isAsado) {
+        const otherAsadoWildcards = db.prepare(`
+          SELECT m.date FROM predictions p
+          JOIN matches m ON p.matchId = m.id
+          WHERE p.userId = ? AND p.isWildcard = 1 AND p.matchId != ?
+        `).all(auth.userId, matchId) as { date: string }[];
+        const usedInAsado = otherAsadoWildcards.some(w => isAsadoDate(w.date));
+        if (usedInAsado) {
+          return NextResponse.json(
+            { error: '🔥 Ya usaste tu comodín de asado. Es solo uno por todo el día.' },
+            { status: 400 }
+          );
+        }
+      } else {
+        const phase = getPhase(match.stage);
+        const otherWildcards = db.prepare(`
+          SELECT m.stage, m.date FROM predictions p
+          JOIN matches m ON p.matchId = m.id
+          WHERE p.userId = ? AND p.isWildcard = 1 AND p.matchId != ?
+        `).all(auth.userId, matchId) as { stage: string; date: string }[];
+        // No contar comodines usados en partidos del asado (son aparte).
+        const phaseAlreadyUsed = otherWildcards.some(w => !isAsadoDate(w.date) && getPhase(w.stage) === phase);
+        if (phaseAlreadyUsed) {
+          return NextResponse.json(
+            { error: `Ya usaste el comodín en ${phaseName(phase)}. Solo puedes usar uno por fase.` },
+            { status: 400 }
+          );
+        }
       }
     }
 

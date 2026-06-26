@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { isAsadoDate, isAsadoModeActive, ASADO_BONUS_QUINIELA } from '@/lib/asado';
 
 interface Match {
   id: number;
@@ -153,7 +154,9 @@ export default function Dashboard() {
   const [publicBets, setPublicBets] = useState<Record<number, PublicBet[]>>({});
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'calendar' | 'matches' | 'resultados' | 'ranking' | 'my-predictions'>('calendar');
+  const [activeTab, setActiveTab] = useState<'calendar' | 'matches' | 'resultados' | 'ranking' | 'my-predictions' | 'asado'>('calendar');
+  const [ruletaSpinning, setRuletaSpinning] = useState(false);
+  const [ruletaPick, setRuletaPick] = useState<string | null>(null);
   const [prevRankings, setPrevRankings] = useState<{[id: number]: number}>({});
   const [matchBetsModal, setMatchBetsModal] = useState<{
     match: Match;
@@ -319,7 +322,33 @@ export default function Dashboard() {
     .filter(m => m.result1 !== null && m.result2 !== null)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+  // ── Modo Asado (solo se activa el sábado 27, hora Chile) ──
+  const asadoMode = isAsadoModeActive();
+  const asadoMatches = matches.filter(m => isAsadoDate(m.date));
+  const asadoFinished = asadoMatches.filter(m => m.result1 !== null && m.result2 !== null);
+  // Ranking del día: puntos ganados solo en partidos del asado (desde publicBets),
+  // + bonus de quiniela perfecta si un jugador clavó TODOS los partidos del día.
+  const asadoDayRanking = (() => {
+    const acc: Record<string, { name: string; pts: number; aciertos: number }> = {};
+    rankings.forEach(r => { acc[r.name] = { name: r.name, pts: 0, aciertos: 0 }; });
+    asadoFinished.forEach(m => {
+      (publicBets[m.id] || []).forEach(b => {
+        if (!acc[b.userName]) acc[b.userName] = { name: b.userName, pts: 0, aciertos: 0 };
+        acc[b.userName].pts += (b.points || 0);
+        if ((b.points || 0) > 0) acc[b.userName].aciertos += 1;
+      });
+    });
+    // Quiniela perfecta: clavó todos los partidos del día (y ya terminaron todos)
+    const allDone = asadoMatches.length > 0 && asadoFinished.length === asadoMatches.length;
+    return Object.values(acc).map(u => {
+      const quiniela = allDone && u.aciertos === asadoMatches.length;
+      return { ...u, quiniela, total: u.pts + (quiniela ? ASADO_BONUS_QUINIELA : 0) };
+    }).sort((a, b) => b.total - a.total);
+  })();
+  const asadoLeader = asadoDayRanking.length ? asadoDayRanking[0].total : 0;
+
   const tabs = [
+    ...(asadoMode ? [{ key: 'asado' as const, label: '🔥 Asado', count: asadoMatches.length }] : []),
     { key: 'calendar' as const, label: '📅 Próximas 3 semanas', count: horizonPendingCount },
     { key: 'matches' as const, label: 'Partidos', count: nextMatches.length },
     { key: 'resultados' as const, label: 'Resultados', count: liveMatchesList.length + playedMatchesList.length },
@@ -327,15 +356,32 @@ export default function Dashboard() {
     { key: 'my-predictions' as const, label: 'Mis Apuestas', count: predictions.length },
   ];
 
+  const spinRuleta = () => {
+    const names = rankings.map(r => r.name);
+    if (names.length === 0 || ruletaSpinning) return;
+    setRuletaSpinning(true);
+    setRuletaPick(null);
+    let ticks = 0;
+    const iv = setInterval(() => {
+      setRuletaPick(names[Math.floor(Math.random() * names.length)]);
+      ticks++;
+      if (ticks > 18) {
+        clearInterval(iv);
+        setRuletaPick(names[Math.floor(Math.random() * names.length)]);
+        setRuletaSpinning(false);
+      }
+    }, 90);
+  };
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--surface)' }}>
 
-      {/* Navbar */}
-      <nav style={{ background: 'linear-gradient(120deg, #08121f 0%, #0f1f3d 45%, #1a3260 100%)', borderBottom: '1px solid rgba(255,255,255,0.06)', position: 'sticky', top: 0, zIndex: 50 }}>
+      {/* Navbar (en Modo Asado cambia a degradado brasa) */}
+      <nav style={{ background: asadoMode ? 'linear-gradient(120deg, #2b1206 0%, #7c2d12 45%, #c2410c 100%)' : 'linear-gradient(120deg, #08121f 0%, #0f1f3d 45%, #1a3260 100%)', borderBottom: '1px solid rgba(255,255,255,0.06)', position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
             <Logo size={34} />
-            <span style={{ color: 'white', fontWeight: 800, fontSize: '0.95rem' }}>Wartito Mundialito <span style={{ color: '#60a5fa' }}>Bets</span></span>
+            <span style={{ color: 'white', fontWeight: 800, fontSize: '0.95rem' }}>{asadoMode ? <>Sábado de Asado 🔥🥩</> : <>Wartito Mundialito <span style={{ color: '#60a5fa' }}>Bets</span></>}</span>
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ textAlign: 'right' }}>
@@ -381,6 +427,17 @@ export default function Dashboard() {
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
 
+        {/* ── Banner Modo Asado ── */}
+        {asadoMode && (
+          <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12, padding: '12px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 22 }}>🔥🥩</span>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#9a3412' }}>¡Hoy es el Día del Asado!</div>
+              <div style={{ fontSize: '0.8rem', color: '#b45309' }}>Solo marcador exacto · comodín de asado (×2) · quiniela perfecta +3 · trofeo en juego</div>
+            </div>
+          </div>
+        )}
+
         {/* Campeón ya elegido: bloqueado (no se puede cambiar) */}
         {!needsChampion && user?.championPrediction && (
           <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -411,6 +468,60 @@ export default function Dashboard() {
             </button>
           ))}
         </div>
+
+        {/* ====== ASADO TAB (solo el sábado del asado) ====== */}
+        {activeTab === 'asado' && (
+          <div>
+            <div style={{ marginBottom: 18 }}>
+              <h2 style={{ fontWeight: 800, fontSize: '1.3rem', color: '#9a3412', margin: 0, letterSpacing: '-0.02em' }}>🔥 Día del Asado</h2>
+              <p style={{ color: '#b45309', fontSize: '0.85rem', margin: '4px 0 0' }}>Solo marcador exacto · el que más sume hoy es el Campeón del Asado 🏆</p>
+            </div>
+
+            {/* Ranking del día */}
+            <div style={{ marginBottom: 22 }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>📊 Ranking del día</div>
+              {asadoFinished.length === 0 ? (
+                <div className="card" style={{ padding: 28, textAlign: 'center', color: 'var(--muted)' }}>
+                  Aún no termina ningún partido del asado. ¡A apostar marcador exacto! 🎯
+                </div>
+              ) : (
+                <div className="card" style={{ padding: '8px 6px' }}>
+                  {asadoDayRanking.filter(u => u.pts > 0 || u.quiniela).length === 0 ? (
+                    <div style={{ padding: 18, textAlign: 'center', color: 'var(--muted)', fontSize: '0.85rem' }}>Nadie ha sumado todavía 😬</div>
+                  ) : asadoDayRanking.filter(u => u.pts > 0 || u.quiniela).map((u, i) => {
+                    const isLeader = u.total === asadoLeader && asadoLeader > 0;
+                    const isMe = u.name === user?.name;
+                    return (
+                      <div key={u.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 12px', background: isMe ? '#fff7ed' : 'transparent', borderRadius: 8 }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: isMe ? 800 : 600, color: '#431407' }}>
+                          {isLeader ? '🏆 ' : `${i + 1}. `}{u.name}{isMe ? ' (tú)' : ''}
+                          {u.quiniela && <span style={{ fontSize: '0.68rem', color: '#9a3412', background: '#fef3c7', borderRadius: 5, padding: '1px 6px', marginLeft: 6, fontWeight: 700 }}>🧾 quiniela +{ASADO_BONUS_QUINIELA}</span>}
+                        </span>
+                        <span style={{ fontWeight: 800, fontSize: '1.05rem', color: '#16a34a' }}>{u.total}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Sorteo del copete (ruleta) */}
+            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>🍻 Sorteo del copete</div>
+            <div className="card" style={{ padding: '22px 20px', textAlign: 'center', borderLeft: '3px solid #ea580c' }}>
+              <p style={{ color: 'var(--muted)', fontSize: '0.85rem', margin: '0 0 14px' }}>Después de cada partido, dale al botón y que la suerte decida quién se toma uno al seco 😈</p>
+              <div style={{ fontWeight: 800, fontSize: '1.8rem', color: ruletaPick ? '#431407' : '#cbd5e1', letterSpacing: '-0.02em', minHeight: 40, marginBottom: 14, transition: 'color .1s' }}>
+                {ruletaPick || '🍺 ¿quién será?'}
+              </div>
+              <button onClick={spinRuleta} disabled={ruletaSpinning}
+                style={{ background: ruletaSpinning ? '#fcd34d' : 'linear-gradient(120deg,#9a3412,#ea580c)', color: 'white', border: 'none', borderRadius: 11, padding: '13px 28px', fontWeight: 800, fontSize: '0.95rem', cursor: ruletaSpinning ? 'default' : 'pointer', fontFamily: 'inherit' }}>
+                {ruletaSpinning ? 'Girando...' : '🍻 Sortear copete'}
+              </button>
+              {ruletaPick && !ruletaSpinning && (
+                <div style={{ marginTop: 12, fontSize: '0.9rem', color: '#9a3412', fontWeight: 700 }}>¡Al seco, {ruletaPick}! 🔥</div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ====== CALENDAR TAB ====== */}
         {activeTab === 'calendar' && (
