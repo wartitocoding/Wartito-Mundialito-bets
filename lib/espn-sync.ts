@@ -20,7 +20,8 @@ const ESPN_URL = 'https://site.web.api.espn.com/apis/site/v2/sports/soccer/fifa.
 interface ESPNCompetitor {
   homeAway: 'home' | 'away';
   score: string;
-  winner?: boolean; // ESPN marca true al equipo que avanza (incluye alargue/penales)
+  winner?: boolean;        // ESPN marca true al equipo que avanza (incluye alargue/penales)
+  shootoutScore?: number;  // marcador de la tanda de penales (solo si hubo)
   team: { displayName: string };
 }
 interface ESPNEvent {
@@ -119,11 +120,18 @@ export async function syncWithESPN(
       const state = comp.status.type.state;
       const result1 = completed ? parseInt(home.score, 10) : null;
       const result2 = completed ? parseInt(away.score, 10) : null;
-      // Ganador del cruce según ESPN (en eliminación incluye alargue y penales).
-      // Si el partido no terminó o ESPN no marca ganador, queda null.
-      const winnerSide: 'team1' | 'team2' | null = completed
-        ? (home.winner ? 'team1' : away.winner ? 'team2' : null)
-        : null;
+      // Ganador del cruce = quien AVANZA, incluyendo 90'+alargue+penales.
+      // 1° el flag `winner` de ESPN (confiable, true al que pasa, también por
+      // penales); 2° si no viniera, se decide por el marcador de penales
+      // (shootoutScore); si tampoco hay, queda null y el scoring usa el marcador.
+      const homeShoot = typeof home.shootoutScore === 'number' ? home.shootoutScore : null;
+      const awayShoot = typeof away.shootoutScore === 'number' ? away.shootoutScore : null;
+      const winnerSide: 'team1' | 'team2' | null = !completed ? null
+        : home.winner ? 'team1'
+        : away.winner ? 'team2'
+        : (homeShoot != null && awayShoot != null && homeShoot !== awayShoot)
+          ? (homeShoot > awayShoot ? 'team1' : 'team2')
+          : null;
       // Marcador "en vivo": el score actual que reporta ESPN aunque el partido
       // no haya terminado. Se guarda aparte para no confundir "partido finalizado"
       // (que se sigue detectando por result1/result2 != null).
