@@ -157,6 +157,18 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<'calendar' | 'matches' | 'resultados' | 'ranking' | 'my-predictions' | 'asado'>('calendar');
   const [ruletaSpinning, setRuletaSpinning] = useState(false);
   const [ruletaPick, setRuletaPick] = useState<string | null>(null);
+  const [asadoWelcomeOpen, setAsadoWelcomeOpen] = useState(false);
+
+  // Pantalla de bienvenida del asado: aparece al entrar, una vez por el día.
+  useEffect(() => {
+    if (isAsadoModeActive() && !localStorage.getItem('wmbAsadoWelcome-2026-06-27')) {
+      setAsadoWelcomeOpen(true);
+    }
+  }, []);
+  const closeAsadoWelcome = () => {
+    localStorage.setItem('wmbAsadoWelcome-2026-06-27', '1');
+    setAsadoWelcomeOpen(false);
+  };
   const [prevRankings, setPrevRankings] = useState<{[id: number]: number}>({});
   const [matchBetsModal, setMatchBetsModal] = useState<{
     match: Match;
@@ -1141,6 +1153,46 @@ export default function Dashboard() {
         )}
 
       </div>
+
+      {/* ====== SPLASH DE BIENVENIDA DEL ASADO (al entrar, una vez en el día) ====== */}
+      {asadoWelcomeOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,3,0.6)', backdropFilter: 'blur(4px)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ width: '100%', maxWidth: 380, borderRadius: 20, overflow: 'hidden', background: 'linear-gradient(165deg,#2b1206 0%,#7c2d12 55%,#c2410c 100%)', boxShadow: '0 24px 70px rgba(0,0,0,.5)' }}>
+            <div style={{ padding: '26px 22px', textAlign: 'center' }}>
+              <div style={{ fontSize: 50, lineHeight: 1 }}>🔥🥩</div>
+              <div style={{ color: '#fff', fontWeight: 800, fontSize: '1.4rem', margin: '10px 0 2px', letterSpacing: '-0.02em', lineHeight: 1.2 }}>¡Bienvenido al<br />Sábado de Asado!</div>
+              <div style={{ color: '#ffd9bf', fontSize: '0.78rem', marginBottom: 18 }}>Hoy se juega distinto 😏</div>
+              <div style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 13, padding: '14px 16px', textAlign: 'left', marginBottom: 16 }}>
+                <div style={{ color: '#ffe9d6', fontSize: '0.8rem', lineHeight: 2 }}>
+                  🎯 Solo <strong>marcador exacto</strong> (3 pts o nada)<br />
+                  🔥 <strong>Comodín de asado</strong> — dobla 1 partido (1 uso)<br />
+                  🧾 <strong>Quiniela perfecta</strong> → +3 pts<br />
+                  🍻 <strong>Sorteo del copete</strong> en la pestaña 🔥 Asado<br />
+                  🏆 <strong>Trofeo del Asado</strong> (se queda todo el mundial)
+                </div>
+              </div>
+              {asadoMatches.length > 0 && (
+                <>
+                  <div style={{ color: '#ffd9bf', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'left', marginBottom: 7 }}>Partidos de hoy</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5, textAlign: 'left', marginBottom: 18 }}>
+                    {asadoMatches.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(m => (
+                      <div key={m.id} style={{ color: '#fff', fontSize: '0.75rem', background: 'rgba(255,255,255,0.07)', borderRadius: 8, padding: '7px 11px', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                        <span>{m.team1} vs {m.team2}</span>
+                        <span style={{ color: '#ffd9bf' }}>{new Date(m.date).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              <button onClick={closeAsadoWelcome}
+                style={{ width: '100%', padding: '14px 0', border: 'none', borderRadius: 12, background: '#fff', color: '#9a3412', fontWeight: 800, fontSize: '1rem', fontFamily: 'inherit', cursor: 'pointer' }}>
+                ¡A la parrilla! 🔥
+              </button>
+              <div style={{ color: '#ffd9bf', fontSize: '0.65rem', marginTop: 9 }}>Apuesta antes de cada partido · se cierra al pitazo 🔒</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ====== MODAL OBLIGATORIO: ELEGIR CAMPEÓN ====== */}
       {/* Bloquea toda la app hasta que el jugador elija campeón. Sin cerrar. */}
