@@ -63,6 +63,7 @@ export default function PredictPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [asadoConfirmed, setAsadoConfirmed] = useState(false); // animación sobria del asado
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -146,6 +147,12 @@ export default function PredictPage() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Error al guardar'); return; }
+      // En partidos del asado, mostramos la confirmación sobria ~2s y luego entramos.
+      if (asado) {
+        setAsadoConfirmed(true);
+        setTimeout(() => router.push('/dashboard'), 2000);
+        return;
+      }
       router.push('/dashboard');
     } catch {
       setError('No se pudo conectar, inténtalo de nuevo.');
@@ -200,6 +207,25 @@ export default function PredictPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--surface)' }}>
+      {/* Confirmación sobria del asado (estilo app) */}
+      {asadoConfirmed && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: '#f6f0ea', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, overflow: 'hidden' }}>
+          <span style={{ position: 'absolute', left: '32%', bottom: 80, fontSize: 16, opacity: 0, animation: 'asadoRise 2.6s ease-out .15s' }}>🔥</span>
+          <span style={{ position: 'absolute', left: '50%', bottom: 80, fontSize: 17, opacity: 0, animation: 'asadoRise 2.6s ease-out .55s' }}>🥩</span>
+          <span style={{ position: 'absolute', left: '64%', bottom: 80, fontSize: 15, opacity: 0, animation: 'asadoRise 2.6s ease-out 1s' }}>🔥</span>
+          <div style={{ width: '100%', maxWidth: 320, background: '#fff', border: '1px solid #e7d8cd', borderRadius: 16, padding: '26px 22px', textAlign: 'center', animation: 'asadoPop .45s ease-out' }}>
+            <div style={{ width: 50, height: 50, borderRadius: '50%', background: '#fff7ed', border: '1px solid #fed7aa', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: 26, color: '#ea580c', fontWeight: 800 }}>✓</div>
+            <div style={{ fontWeight: 800, fontSize: '1.15rem', color: '#431407', letterSpacing: '-0.02em' }}>Apuesta confirmada</div>
+            <div style={{ fontSize: '0.78rem', color: '#a8856b', margin: '3px 0 14px' }}>A la parrilla 🔥🥩</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, borderTop: '1px solid #f0e3d8', paddingTop: 13 }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#431407' }}>{match.team1}</span>
+              <span style={{ fontWeight: 800, fontSize: '1.5rem', color: '#431407', letterSpacing: '-0.05em' }}>{prediction1} – {prediction2}</span>
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#431407' }}>{match.team2}</span>
+            </div>
+            <div style={{ fontSize: '0.72rem', color: '#9a3412', fontWeight: 700, marginTop: 8 }}>🎯 Marcador exacto{useWildcard ? ' · ⚡ comodín ×2' : ''}</div>
+          </div>
+        </div>
+      )}
       <nav style={{ background: 'linear-gradient(120deg, #08121f 0%, #0f1f3d 45%, #1a3260 100%)', height: 56, display: 'flex', alignItems: 'center', padding: '0 24px', position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', width: '100%', display: 'flex', alignItems: 'center', gap: 16 }}>
           <Link href="/dashboard" style={{ color: '#93c5fd', fontSize: '0.875rem', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
