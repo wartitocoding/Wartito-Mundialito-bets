@@ -3,12 +3,14 @@
 // Fuera de la ventana del sábado (hora Chile), isAsadoDate/isAsadoModeActive
 // devuelven false y la app se comporta EXACTAMENTE igual que siempre.
 //
-// Ventana = sábado 27-jun completo en hora Chile (UTC-4):
-//   sáb 00:00 Chile = 2026-06-27T04:00Z   →   dom 00:00 Chile = 2026-06-28T04:00Z
+// Ventana = sábado 27-jun en hora Chile (UTC-4), de 3:00 AM a 3:00 AM:
+//   sáb 03:00 Chile = 2026-06-27T07:00Z   →   dom 03:00 Chile = 2026-06-28T07:00Z
+// El fin a las 3 AM del domingo asegura cubrir y mostrar el recap de los
+// últimos partidos del sábado (22:00 Chile, que terminan pasada la medianoche).
 // Comparación de strings ISO-UTC (lexicográfica) — válida para este formato.
 
-export const ASADO_START_UTC = '2026-06-27T04:00:00.000Z';
-export const ASADO_END_UTC = '2026-06-28T04:00:00.000Z';
+export const ASADO_START_UTC = '2026-06-27T07:00:00.000Z';
+export const ASADO_END_UTC = '2026-06-28T07:00:00.000Z';
 
 /** ¿La fecha ISO (UTC) de un partido cae dentro del sábado del asado (hora Chile)? */
 export function isAsadoDate(iso: string | null | undefined): boolean {
