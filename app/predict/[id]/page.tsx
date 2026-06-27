@@ -175,6 +175,16 @@ export default function PredictPage() {
   const isPlayed = match.result1 !== null;
   const isAsado = isAsadoDate(match.date); // Día del Asado: solo marcador exacto
 
+  // Comodín de Asado: es ÚNICO para todo el día (separado del comodín normal por
+  // fase). ¿El jugador ya lo aplicó en OTRO partido del asado?
+  const asadoWildcardPred = isAsado ? predictions.find(p => {
+    if (p.isWildcard !== 1 || p.matchId === parseInt(matchId)) return false;
+    const m = allMatches.find(mm => mm.id === p.matchId);
+    return !!m && isAsadoDate(m.date);
+  }) : undefined;
+  const asadoWildcardOnOther = !!asadoWildcardPred;
+  const asadoWildcardMatchInfo = asadoWildcardPred ? allMatches.find(m => m.id === asadoWildcardPred.matchId) : null;
+
   const currentPhase = getPhase(match.stage);
   const wildcardInPhase = predictions
     .filter(p => p.isWildcard === 1)
@@ -391,64 +401,125 @@ export default function PredictPage() {
               </div>
 
               {/* Sub-resumen */}
-              <div style={{ background: 'var(--surface)', borderRadius: 8, padding: '10px 16px', marginBottom: 20, display: 'flex', justifyContent: 'center', gap: 18, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>🎯 Exacto: <strong style={{ color: 'var(--navy)' }}>3 pts</strong></span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>🤝 Empate: <strong style={{ color: 'var(--navy)' }}>2 pts</strong></span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>🏆 Ganador: <strong style={{ color: 'var(--navy)' }}>1 pt</strong></span>
-              </div>
+              {isAsado ? (
+                <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '10px 16px', marginBottom: 20, textAlign: 'center' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#9a3412' }}>🎯 Marcador exacto: <strong>3 pts</strong> <span style={{ color: '#b45309' }}>(o nada — hay que clavarlo)</span></span>
+                </div>
+              ) : (
+                <div style={{ background: 'var(--surface)', borderRadius: 8, padding: '10px 16px', marginBottom: 20, display: 'flex', justifyContent: 'center', gap: 18, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>🎯 Exacto: <strong style={{ color: 'var(--navy)' }}>3 pts</strong></span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>🤝 Empate: <strong style={{ color: 'var(--navy)' }}>2 pts</strong></span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>🏆 Ganador: <strong style={{ color: 'var(--navy)' }}>1 pt</strong></span>
+                </div>
+              )}
 
               {/* ── COMODÍN ── */}
-              <div style={{ marginBottom: 24 }}>
-                <button type="button" onClick={() => setWildcardOpen(!wildcardOpen)}
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    background: useWildcard ? '#fffbeb' : 'var(--surface)',
-                    border: `1px solid ${useWildcard ? '#fcd34d' : 'var(--border)'}`,
-                    borderRadius: wildcardOpen ? '8px 8px 0 0' : 8,
-                    padding: '11px 16px', cursor: 'pointer', fontFamily: 'inherit',
-                  }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.875rem', fontWeight: 700, color: useWildcard ? '#92400e' : 'var(--navy)' }}>
-                    <span style={{ fontSize: '1.1rem' }}>⚡</span>
-                    {useWildcard ? 'Comodín activado — puntos x2' : 'Usar comodín (dobla los puntos)'}
-                  </span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--muted)', transform: wildcardOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
-                </button>
+              {isAsado ? (
+                /* Comodín de Asado: ÚNICO para todo el día, separado del comodín por fase */
+                <div style={{ marginBottom: 24 }}>
+                  <button type="button" onClick={() => setWildcardOpen(!wildcardOpen)}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      background: useWildcard ? '#fff7ed' : '#fffaf6',
+                      border: `1px solid ${useWildcard ? '#fb923c' : '#fed7aa'}`,
+                      borderRadius: (wildcardOpen || asadoWildcardOnOther) ? '8px 8px 0 0' : 8,
+                      padding: '11px 16px', cursor: 'pointer', fontFamily: 'inherit',
+                    }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.875rem', fontWeight: 700, color: '#9a3412' }}>
+                      <span style={{ fontSize: '1.1rem' }}>🔥</span>
+                      {useWildcard ? 'Comodín de Asado activado — puntos ×2' : 'Comodín de Asado (dobla los puntos)'}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: '#b45309', transform: (wildcardOpen || asadoWildcardOnOther) ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+                  </button>
 
-                {wildcardOpen && (
-                  <div style={{ border: '1px solid var(--border)', borderTop: 'none', borderRadius: '0 0 8px 8px', padding: '16px', background: 'white' }}>
-                    {wildcardOnOtherMatch ? (
-                      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                        <span style={{ fontSize: '1.5rem' }}>🔒</span>
-                        <div>
-                          <p style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--navy)', margin: '0 0 4px' }}>
-                            Comodín ya usado en {getPhaseName(currentPhase)}
-                          </p>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--muted)', margin: 0, lineHeight: 1.5 }}>
-                            Lo usaste en {wildcardMatchInfo?.team1} vs {wildcardMatchInfo?.team2}.
-                            Solo puedes usar un comodín por fase.
-                          </p>
+                  {(wildcardOpen || asadoWildcardOnOther) && (
+                    <div style={{ border: '1px solid #fed7aa', borderTop: 'none', borderRadius: '0 0 8px 8px', padding: '16px', background: 'white' }}>
+                      {asadoWildcardOnOther ? (
+                        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                          <span style={{ fontSize: '1.5rem' }}>🔒</span>
+                          <div>
+                            <p style={{ fontWeight: 700, fontSize: '0.875rem', color: '#9a3412', margin: '0 0 4px' }}>
+                              Ya usaste tu comodín de asado
+                            </p>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--muted)', margin: 0, lineHeight: 1.5 }}>
+                              Lo aplicaste en {asadoWildcardMatchInfo?.team1} vs {asadoWildcardMatchInfo?.team2}.
+                              Es único: solo uno para todo el día del asado.
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <>
-                        <p style={{ fontSize: '0.875rem', color: 'var(--navy)', margin: '0 0 12px', lineHeight: 1.6 }}>
-                          El comodín <strong>dobla los puntos</strong> que ganes en este partido.
-                        </p>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
-                          <input type="checkbox" checked={useWildcard} onChange={e => setUseWildcard(e.target.checked)}
-                            style={{ width: 18, height: 18, cursor: 'pointer', accentColor: '#f59e0b' }} />
-                          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--navy)' }}>
-                            Activar comodín en este partido
-                          </span>
-                        </label>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--muted)', margin: '10px 0 0', lineHeight: 1.5 }}>
-                          ⚠ Solo 1 comodín por fase del torneo.
-                        </p>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
+                      ) : (
+                        <>
+                          <p style={{ fontSize: '0.875rem', color: '#431407', margin: '0 0 12px', lineHeight: 1.6 }}>
+                            El <strong>comodín de asado</strong> dobla los puntos de este partido. Es <strong>único</strong> para todo el día.
+                          </p>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+                            <input type="checkbox" checked={useWildcard} onChange={e => setUseWildcard(e.target.checked)}
+                              style={{ width: 18, height: 18, cursor: 'pointer', accentColor: '#ea580c' }} />
+                            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#431407' }}>
+                              Activar comodín de asado en este partido
+                            </span>
+                          </label>
+                          <p style={{ fontSize: '0.75rem', color: '#b45309', margin: '10px 0 0', lineHeight: 1.5 }}>
+                            🔥 Solo lo puedes usar en UN partido de hoy. Si no lo usas, se va con el asado (no se acumula).
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ marginBottom: 24 }}>
+                  <button type="button" onClick={() => setWildcardOpen(!wildcardOpen)}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      background: useWildcard ? '#fffbeb' : 'var(--surface)',
+                      border: `1px solid ${useWildcard ? '#fcd34d' : 'var(--border)'}`,
+                      borderRadius: wildcardOpen ? '8px 8px 0 0' : 8,
+                      padding: '11px 16px', cursor: 'pointer', fontFamily: 'inherit',
+                    }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.875rem', fontWeight: 700, color: useWildcard ? '#92400e' : 'var(--navy)' }}>
+                      <span style={{ fontSize: '1.1rem' }}>⚡</span>
+                      {useWildcard ? 'Comodín activado — puntos x2' : 'Usar comodín (dobla los puntos)'}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--muted)', transform: wildcardOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+                  </button>
+
+                  {wildcardOpen && (
+                    <div style={{ border: '1px solid var(--border)', borderTop: 'none', borderRadius: '0 0 8px 8px', padding: '16px', background: 'white' }}>
+                      {wildcardOnOtherMatch ? (
+                        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                          <span style={{ fontSize: '1.5rem' }}>🔒</span>
+                          <div>
+                            <p style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--navy)', margin: '0 0 4px' }}>
+                              Comodín ya usado en {getPhaseName(currentPhase)}
+                            </p>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--muted)', margin: 0, lineHeight: 1.5 }}>
+                              Lo usaste en {wildcardMatchInfo?.team1} vs {wildcardMatchInfo?.team2}.
+                              Solo puedes usar un comodín por fase.
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <p style={{ fontSize: '0.875rem', color: 'var(--navy)', margin: '0 0 12px', lineHeight: 1.6 }}>
+                            El comodín <strong>dobla los puntos</strong> que ganes en este partido.
+                          </p>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+                            <input type="checkbox" checked={useWildcard} onChange={e => setUseWildcard(e.target.checked)}
+                              style={{ width: 18, height: 18, cursor: 'pointer', accentColor: '#f59e0b' }} />
+                            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--navy)' }}>
+                              Activar comodín en este partido
+                            </span>
+                          </label>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--muted)', margin: '10px 0 0', lineHeight: 1.5 }}>
+                            ⚠ Solo 1 comodín por fase del torneo.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <button type="submit" disabled={submitting}
                 style={{
