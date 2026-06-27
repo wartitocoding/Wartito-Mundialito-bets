@@ -36,26 +36,41 @@ export function calculatePoints(
   pred: PredictionInput,
   actual1: number,
   actual2: number,
+  winner?: 'team1' | 'team2' | null,
 ): number {
   let points = 0;
   const { betType, prediction1: p1, prediction2: p2 } = pred;
 
   switch (betType) {
     case 'exact':
-      // Todo-o-nada: solo suma si clava el marcador exacto.
+      // Todo-o-nada: solo suma si clava el marcador exacto (marcador de cancha,
+      // 90'+alargue; los penales no cuentan para el "exacto").
       if (p1 === actual1 && p2 === actual2) points = 3;
       break;
     case 'draw':
       if (actual1 === actual2) points = 2;
       break;
     case 'team1':
-      if (actual1 > actual2) points = 1;
+      // En eliminación, "Ganador" = quien AVANZA (incluye alargue y penales): si
+      // viene el flag de ganador, manda sobre el marcador de cancha. Si no viene
+      // (grupos, o partido sin flag), se decide por el marcador, como siempre.
+      if (winner ? winner === 'team1' : actual1 > actual2) points = 1;
       break;
     case 'team2':
-      if (actual2 > actual1) points = 1;
+      if (winner ? winner === 'team2' : actual2 > actual1) points = 1;
       break;
   }
 
   if (pred.isWildcard) points *= 2;
   return points;
+}
+
+/**
+ * ¿El partido es de eliminación (puede terminar en penales)? = cualquier fase
+ * que NO sea de grupos. En esas fases NO se permite apostar "empate": solo
+ * Ganador o Marcador exacto, y el ganador incluye alargue y penales.
+ */
+export function isEliminationStage(stage: string | null | undefined): boolean {
+  const s = (stage || '').toLowerCase();
+  return s !== '' && !(s.includes('grupo') || s.includes('group'));
 }

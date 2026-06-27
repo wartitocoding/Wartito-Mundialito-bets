@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { isAsadoDate } from '@/lib/asado';
+import { isEliminationStage } from '@/lib/scoring';
 
 interface Match {
   id: number;
@@ -31,15 +32,16 @@ function getPhase(stage: string): string {
   if (s.includes('group') || s.includes('grupo')) return 'grupos';
   if (s.includes('quarter') || s.includes('cuarto')) return 'cuartos';
   if (s.includes('semi') || s.includes('tercer') || s.includes('3rd') || s.includes('third')) return 'semis';
-  if (s.includes('16') || s.includes('octavo') || s.includes('round of 16')) return 'octavos';
+  if (s.includes('dieciseis') || s.includes('32') || s.includes('round of 32')) return 'dieciseisavos';
+  if (s.includes('octavo') || s.includes('round of 16')) return 'octavos';
   if (s.includes('final')) return 'final';
   return s.replace(/\s+/g, '_');
 }
 
 function getPhaseName(phase: string): string {
   const names: Record<string, string> = {
-    grupos: 'Fase de Grupos', octavos: 'Octavos de Final', cuartos: 'Cuartos de Final',
-    semis: 'Semifinales', final: 'Final',
+    grupos: 'Fase de Grupos', dieciseisavos: 'Dieciseisavos de Final', octavos: 'Octavos de Final',
+    cuartos: 'Cuartos de Final', semis: 'Semifinales', final: 'Final',
   };
   return names[phase] || phase;
 }
@@ -75,6 +77,12 @@ export default function PredictPage() {
   useEffect(() => {
     if (match && isAsadoDate(match.date)) setBetType('exact');
   }, [match]);
+
+  // Eliminación (puede ir a penales): no existe "empate". Si quedó seleccionado,
+  // lo cambiamos a marcador exacto.
+  useEffect(() => {
+    if (match && isEliminationStage(match.stage) && betType === 'draw') setBetType('exact');
+  }, [match, betType]);
 
   const fetchData = async (token: string) => {
     try {
@@ -114,7 +122,9 @@ export default function PredictPage() {
 
     // Día del Asado: el tipo de apuesta queda forzado a marcador exacto.
     const asado = match ? isAsadoDate(match.date) : false;
-    const bt = asado ? 'exact' : betType;
+    // Eliminación: no existe "empate" — si llegara, se trata como marcador exacto.
+    const elim = match ? isEliminationStage(match.stage) : false;
+    const bt = asado ? 'exact' : (elim && betType === 'draw' ? 'exact' : betType);
 
     if (bt === 'exact') {
       if (!Number.isInteger(prediction1) || !Number.isInteger(prediction2)) {
@@ -185,6 +195,10 @@ export default function PredictPage() {
   const asadoWildcardOnOther = !!asadoWildcardPred;
   const asadoWildcardMatchInfo = asadoWildcardPred ? allMatches.find(m => m.id === asadoWildcardPred.matchId) : null;
 
+  // Eliminación = cualquier partido que puede ir a penales (todo lo que NO es
+  // grupos): no se permite "empate", solo Ganador o Marcador exacto.
+  const isElim = isEliminationStage(match.stage);
+
   const currentPhase = getPhase(match.stage);
   const wildcardInPhase = predictions
     .filter(p => p.isWildcard === 1)
@@ -214,6 +228,8 @@ export default function PredictPage() {
     { key: 'team1', label: `Gana ${match.team1}`, desc: 'Cualquier marcador a favor', pts: '1 pt si gana',     emoji: '🏆' },
     { key: 'team2', label: `Gana ${match.team2}`, desc: 'Cualquier marcador a favor', pts: '1 pt si gana',     emoji: '🏆' },
   ];
+  // En eliminación no existe "empate": se quita la opción.
+  const visibleBetOptions = isElim ? betOptions.filter(o => o.key !== 'draw') : betOptions;
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--surface)' }}>
@@ -309,12 +325,19 @@ export default function PredictPage() {
                 </div>
               ) : (
                 <>
+                  {/* ── Eliminación: aviso de que no hay empate ── */}
+                  {isElim && (
+                    <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '12px 16px', marginBottom: 20, textAlign: 'center' }}>
+                      <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#1e40af' }}>⚽ Fase de eliminación</div>
+                      <div style={{ fontSize: '0.8rem', color: '#1e40af', marginTop: 2 }}>Acá no hay empate: <strong>Marcador exacto</strong> o <strong>Ganador</strong>. El ganador incluye alargue y penales 🥅</div>
+                    </div>
+                  )}
                   {/* ── SELECTOR DE TIPO DE APUESTA ── */}
                   <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: '0.78rem', fontWeight: 700, marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     1. Elige cómo quieres apostar
                   </p>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 24 }}>
-                    {betOptions.map(opt => {
+                    {visibleBetOptions.map(opt => {
                       const selected = betType === opt.key;
                       return (
                         <button key={opt.key} type="button" onClick={() => setBetType(opt.key)}
@@ -408,7 +431,7 @@ export default function PredictPage() {
               ) : (
                 <div style={{ background: 'var(--surface)', borderRadius: 8, padding: '10px 16px', marginBottom: 20, display: 'flex', justifyContent: 'center', gap: 18, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>🎯 Exacto: <strong style={{ color: 'var(--navy)' }}>3 pts</strong></span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>🤝 Empate: <strong style={{ color: 'var(--navy)' }}>2 pts</strong></span>
+                  {!isElim && <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>🤝 Empate: <strong style={{ color: 'var(--navy)' }}>2 pts</strong></span>}
                   <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>🏆 Ganador: <strong style={{ color: 'var(--navy)' }}>1 pt</strong></span>
                 </div>
               )}

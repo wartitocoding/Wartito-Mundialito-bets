@@ -1266,7 +1266,7 @@ export default function Dashboard() {
               <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🤝 <strong>Empate:</strong> 2 pts <span style={{ color: '#64748b' }}>(solo fase de grupos)</span></div>
               <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>✅ <strong>Ganador:</strong> 1 pt</div>
               <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🏆 <strong>Campeón del mundial:</strong> +10 pts bonus</div>
-              <div style={{ fontSize: '0.78rem', color: '#64748b', flexBasis: '100%' }}>⚽ Fases finales (octavos→final): solo <strong>Ganador</strong> o <strong>Marcador exacto</strong>; el ganador incluye alargue y penales.</div>
+              <div style={{ fontSize: '0.78rem', color: '#64748b', flexBasis: '100%' }}>⚽ Fases finales (16avos→final): solo <strong>Ganador</strong> o <strong>Marcador exacto</strong>; el ganador incluye alargue y penales.</div>
             </div>
           </div>
         )}

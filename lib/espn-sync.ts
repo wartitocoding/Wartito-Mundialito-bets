@@ -20,6 +20,7 @@ const ESPN_URL = 'https://site.web.api.espn.com/apis/site/v2/sports/soccer/fifa.
 interface ESPNCompetitor {
   homeAway: 'home' | 'away';
   score: string;
+  winner?: boolean; // ESPN marca true al equipo que avanza (incluye alargue/penales)
   team: { displayName: string };
 }
 interface ESPNEvent {
@@ -118,6 +119,11 @@ export async function syncWithESPN(
       const state = comp.status.type.state;
       const result1 = completed ? parseInt(home.score, 10) : null;
       const result2 = completed ? parseInt(away.score, 10) : null;
+      // Ganador del cruce según ESPN (en eliminación incluye alargue y penales).
+      // Si el partido no terminó o ESPN no marca ganador, queda null.
+      const winnerSide: 'team1' | 'team2' | null = completed
+        ? (home.winner ? 'team1' : away.winner ? 'team2' : null)
+        : null;
       // Marcador "en vivo": el score actual que reporta ESPN aunque el partido
       // no haya terminado. Se guarda aparte para no confundir "partido finalizado"
       // (que se sigue detectando por result1/result2 != null).
@@ -134,7 +140,7 @@ export async function syncWithESPN(
         upsertNew.run(ev.id, team1, team2, stage, dateUTC, result1, result2, live1, live2, status, Date.now());
         result.inserted++;
         if (completed) {
-          recalcPointsFor(db, ev.id, result1!, result2!);
+          recalcPointsFor(db, ev.id, result1!, result2!, winnerSide);
           result.pointsRecalculated++;
         }
       } else {
@@ -156,7 +162,7 @@ export async function syncWithESPN(
         if (resultChanged) {
           updateResult.run(result1, result2, live1, live2, status, ev.id);
           if (completed) {
-            recalcPointsFor(db, ev.id, result1!, result2!);
+            recalcPointsFor(db, ev.id, result1!, result2!, winnerSide);
             result.pointsRecalculated++;
           }
           result.resultsUpdated++;
@@ -175,7 +181,13 @@ export async function syncWithESPN(
  * Usa la única fuente de verdad de scoring: lib/scoring.ts (calculatePoints)
  *  - 3 pts marcador exacto · 2 pts empate · 1 pt ganador · x2 con comodín
  */
-function recalcPointsFor(db: Database.Database, externalId: string, g1: number, g2: number) {
+function recalcPointsFor(
+  db: Database.Database,
+  externalId: string,
+  g1: number,
+  g2: number,
+  winner: 'team1' | 'team2' | null = null,
+) {
   const match = db.prepare('SELECT id FROM matches WHERE externalId = ?').get(externalId) as any;
   if (!match) return;
   const preds = db
@@ -185,7 +197,7 @@ function recalcPointsFor(db: Database.Database, externalId: string, g1: number, 
   for (const p of preds) {
     const points = calculatePoints(
       { betType: (p.betType || 'exact') as BetType, prediction1: p.prediction1, prediction2: p.prediction2, isWildcard: p.isWildcard },
-      g1, g2,
+      g1, g2, winner,
     );
     db.prepare('UPDATE predictions SET points = ? WHERE id = ?').run(points, p.id);
   }
