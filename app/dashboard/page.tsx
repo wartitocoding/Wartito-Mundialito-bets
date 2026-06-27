@@ -158,6 +158,7 @@ export default function Dashboard() {
   const [ruletaSpinning, setRuletaSpinning] = useState(false);
   const [ruletaPick, setRuletaPick] = useState<string | null>(null);
   const [asadoWelcomeOpen, setAsadoWelcomeOpen] = useState(false);
+  const [recapShared, setRecapShared] = useState(false);
 
   // Pantalla de bienvenida del asado: aparece al entrar, una vez por el día.
   useEffect(() => {
@@ -358,6 +359,17 @@ export default function Dashboard() {
     }).sort((a, b) => b.total - a.total);
   })();
   const asadoLeader = asadoDayRanking.length ? asadoDayRanking[0].total : 0;
+  // Termómetro de la parrilla: goles totales del día (finalizados + en vivo)
+  const asadoGoles = asadoMatches.reduce((s, m) => {
+    if (m.result1 !== null && m.result2 !== null) return s + m.result1 + m.result2;
+    if (m.status === 'live' && m.liveScore1 != null && m.liveScore2 != null) return s + m.liveScore1 + m.liveScore2;
+    return s;
+  }, 0);
+  const asadoTermo = Math.min(100, Math.round((asadoGoles / 15) * 100)); // 15 goles = parrilla al rojo
+  // Recap: cuando ya terminaron todos los partidos del día
+  const asadoAllDone = asadoMatches.length > 0 && asadoFinished.length === asadoMatches.length;
+  const asadoChampions = asadoLeader > 0 ? asadoDayRanking.filter(u => u.total === asadoLeader) : [];
+  const asadoMaxAciertos = asadoDayRanking.reduce((mx, u) => Math.max(mx, u.aciertos), 0);
 
   const tabs = [
     ...(asadoMode ? [{ key: 'asado' as const, label: '🔥 Asado', count: asadoMatches.length }] : []),
@@ -367,6 +379,15 @@ export default function Dashboard() {
     { key: 'ranking' as const, label: 'Ranking', count: rankings.length },
     { key: 'my-predictions' as const, label: 'Mis Apuestas', count: predictions.length },
   ];
+
+  const shareRecap = () => {
+    const champs = asadoChampions.map(c => c.name).join(' y ');
+    const lines = asadoDayRanking.filter(u => u.total > 0).map((u, i) => `${i + 1}. ${u.name} — ${u.total} pts`).join('\n');
+    const txt = `🔥🥩 SÁBADO DE ASADO — resultados 🔥🥩\n\n🏆 Campe${asadoChampions.length > 1 ? 'ones' : 'ón'} del Asado: ${champs}\n\n${lines}\n\n⚽ ${asadoGoles} goles en el día`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(txt).then(() => { setRecapShared(true); setTimeout(() => setRecapShared(false), 2500); });
+    }
+  };
 
   const spinRuleta = () => {
     const names = rankings.map(r => r.name);
@@ -487,6 +508,47 @@ export default function Dashboard() {
             <div style={{ marginBottom: 18 }}>
               <h2 style={{ fontWeight: 800, fontSize: '1.3rem', color: '#9a3412', margin: 0, letterSpacing: '-0.02em' }}>🔥 Día del Asado</h2>
               <p style={{ color: '#b45309', fontSize: '0.85rem', margin: '4px 0 0' }}>Solo marcador exacto · el que más sume hoy es el Campeón del Asado 🏆</p>
+            </div>
+
+            {/* ── RECAP: Campeón del Asado (cuando terminan todos los partidos) ── */}
+            {asadoAllDone && asadoChampions.length > 0 && (
+              <div style={{ borderRadius: 16, overflow: 'hidden', background: 'linear-gradient(160deg,#7c2d12,#c2410c)', padding: '22px 20px', textAlign: 'center', marginBottom: 22 }}>
+                <div style={{ fontSize: 42, lineHeight: 1 }}>🏆</div>
+                <div style={{ color: '#ffd9bf', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '8px 0 2px' }}>
+                  Campe{asadoChampions.length > 1 ? 'ones' : 'ón'} del Asado
+                </div>
+                <div style={{ color: '#fff', fontWeight: 800, fontSize: '1.25rem', marginBottom: 4 }}>
+                  {asadoChampions.map(c => c.name).join(' & ')} 🏆
+                </div>
+                <div style={{ color: '#ffe9d6', fontSize: '0.8rem', marginBottom: 14 }}>
+                  {asadoChampions.length > 1 ? `Co-campeones con ${asadoLeader} pts` : `${asadoLeader} pts en el día`}
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 11, padding: '11px 14px', textAlign: 'left', marginBottom: 14 }}>
+                  <div style={{ color: '#ffe9d6', fontSize: '0.8rem', lineHeight: 1.9 }}>
+                    🎯 Más exactos: <strong>{asadoMaxAciertos}</strong> {asadoMaxAciertos > 0 ? `(${asadoDayRanking.filter(u => u.aciertos === asadoMaxAciertos).map(u => u.name).join(', ')})` : ''}<br />
+                    ⚽ Goles del día: <strong>{asadoGoles}</strong>
+                  </div>
+                </div>
+                <button onClick={shareRecap}
+                  style={{ width: '100%', padding: '12px 0', border: 'none', borderRadius: 11, background: '#fff', color: '#9a3412', fontWeight: 800, fontSize: '0.92rem', fontFamily: 'inherit', cursor: 'pointer' }}>
+                  {recapShared ? '✓ ¡Copiado!' : 'Compartir en el grupo 📲'}
+                </button>
+              </div>
+            )}
+
+            {/* ── Termómetro de la parrilla ── */}
+            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>🌡️ Termómetro de la parrilla</div>
+            <div className="card" style={{ padding: '14px 16px', marginBottom: 22 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontSize: '0.82rem', color: '#9a3412', fontWeight: 600 }}>Goles totales de hoy</span>
+                <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#ea580c' }}>{asadoGoles} ⚽</span>
+              </div>
+              <div style={{ height: 12, borderRadius: 99, background: '#f1e3d6', overflow: 'hidden' }}>
+                <div style={{ width: `${asadoTermo}%`, height: '100%', background: 'linear-gradient(90deg,#f59e0b,#dc2626)', transition: 'width .4s' }} />
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: 6, textAlign: 'right' }}>
+                {asadoGoles === 0 ? 'Parrilla fría... ¡que empiecen los goles!' : asadoTermo >= 100 ? '🔥 ¡Parrilla al rojo vivo!' : asadoTermo >= 60 ? '🔥 calentando' : 'prendiendo el carbón'}
+              </div>
             </div>
 
             {/* Ranking del día */}
