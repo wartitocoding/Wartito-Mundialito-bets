@@ -677,7 +677,7 @@ export default function Dashboard() {
                               </div>
                               <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
                                 <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--navy)' }}>
-                                  {new Date(match.date).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
+                                  {new Date(match.date).toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour: '2-digit', minute: '2-digit' })}
                                 </div>
                                 {isLive && <div style={{ fontSize: '0.72rem', color: '#ea580c', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ea580c', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />En vivo</div>}
                                 {isPlayed && !isLive && <div style={{ fontSize: '0.75rem', color: 'var(--muted)', fontWeight: 600 }}>Finalizado</div>}
@@ -777,7 +777,7 @@ export default function Dashboard() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                           <span className="tag">{match.stage}</span>
                           <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>
-                            {new Date(match.date).toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            {new Date(match.date).toLocaleDateString('es-CL', { timeZone: 'America/Santiago', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
                         <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--navy)' }}>
@@ -1078,7 +1078,7 @@ export default function Dashboard() {
                               <div style={{ display: 'flex', gap: 8, marginBottom: 4, alignItems: 'center' }}>
                                 <span className="tag">{match.stage}</span>
                                 <span style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>
-                                  {new Date(match.date).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                  {new Date(match.date).toLocaleDateString('es-CL', { timeZone: 'America/Santiago', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                 </span>
                                 {match.status === 'live' && <span style={{ fontSize: '0.68rem', color: '#ea580c', fontWeight: 700 }}>🔴 En vivo</span>}
                               </div>
@@ -1178,7 +1178,7 @@ export default function Dashboard() {
                     {asadoMatches.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(m => (
                       <div key={m.id} style={{ color: '#fff', fontSize: '0.75rem', background: 'rgba(255,255,255,0.07)', borderRadius: 8, padding: '7px 11px', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                         <span>{m.team1} vs {m.team2}</span>
-                        <span style={{ color: '#ffd9bf' }}>{new Date(m.date).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span style={{ color: '#ffd9bf' }}>{new Date(m.date).toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                     ))}
                   </div>

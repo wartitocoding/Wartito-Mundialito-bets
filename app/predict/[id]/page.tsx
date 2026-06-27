@@ -187,7 +187,7 @@ export default function PredictPage() {
   };
 
   const dateLabel = matchDate.toLocaleDateString('es-CL', {
-    weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
+    timeZone: 'America/Santiago', weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
   });
 
   type BetOption = { key: BetType; label: string; desc: string; pts: string; emoji: string };
