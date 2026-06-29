@@ -142,6 +142,9 @@ export function initDb() {
     { name: 'users.manualPoints', sql: 'ALTER TABLE users ADD COLUMN manualPoints INTEGER DEFAULT 0' },
     { name: 'matches.liveScore1', sql: 'ALTER TABLE matches ADD COLUMN liveScore1 INTEGER' },
     { name: 'matches.liveScore2', sql: 'ALTER TABLE matches ADD COLUMN liveScore2 INTEGER' },
+    // Equipo que avanza en eliminatorias (incluye penales): 'team1' | 'team2' | NULL.
+    // Permite puntuar las apuestas de ganador cuando el cruce se define por penales.
+    { name: 'matches.winnerSide', sql: 'ALTER TABLE matches ADD COLUMN winnerSide TEXT' },
   ];
 
   for (const mig of migrations) {
