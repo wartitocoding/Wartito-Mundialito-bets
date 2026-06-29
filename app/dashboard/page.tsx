@@ -36,6 +36,14 @@ function betText(b: { betType: string; prediction1: number; prediction2: number 
   return `🎯 ${b.prediction1}–${b.prediction2}`;
 }
 
+// Equipos "por definir": placeholders de cruces aún no resueltos (p. ej.
+// "1° Grupo A", "3° C/D/F/G/H", "Ganador R32 #1"). Esos partidos no se
+// muestran para apostar hasta que se sepan los equipos reales.
+const PLACEHOLDER_TEAM_RE = /grupo|ganador|perdedor|definir|winner|loser|[°/]/i;
+function teamsKnown(m: { team1: string; team2: string }): boolean {
+  return !PLACEHOLDER_TEAM_RE.test(m.team1 || '') && !PLACEHOLDER_TEAM_RE.test(m.team2 || '');
+}
+
 interface Ranking {
   id: number;
   name: string;
@@ -332,7 +340,9 @@ export default function Dashboard() {
   }
 
   const now = new Date();
-  const nextMatches = matches.filter((m) => new Date(m.date) > now);
+  // Solo partidos próximos con equipos YA definidos (los cruces "por definir"
+  // no se muestran para apostar hasta que se sepan los rivales reales).
+  const nextMatches = matches.filter((m) => new Date(m.date) > now && teamsKnown(m));
 
   // Historial de apuestas del jugador: cruza sus predicciones con los partidos.
   const myBets = predictions
@@ -364,7 +374,7 @@ export default function Dashboard() {
   const weeksWithDays = groupMatchesByWeek(matches, now, 3).map(w => {
     const wkMatches = matches.filter(m => {
       const d = new Date(m.date);
-      return notPlayed(m) && d >= w.monday && d <= w.sunday;
+      return notPlayed(m) && teamsKnown(m) && d >= w.monday && d <= w.sunday;
     }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     const days: { date: Date; matches: Match[] }[] = [];
