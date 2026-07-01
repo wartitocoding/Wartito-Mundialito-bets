@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initDb, getDatabase } from '@/lib/db';
 import { verifyAuth } from '@/lib/middleware';
 import { isAsadoDate } from '@/lib/asado';
+import { isExactOnlyMatch } from '@/lib/exact-only-matches';
 
 export const dynamic = "force-dynamic";
 
@@ -104,6 +105,14 @@ export async function POST(req: NextRequest) {
     if (isAsado && betType !== 'exact') {
       return NextResponse.json(
         { error: '🔥 Día del Asado: hoy solo se permite marcador exacto.' },
+        { status: 400 }
+      );
+    }
+
+    // ── Partidos "solo exacto" acordados entre jugadores (Colombia-Ghana, Portugal-Croacia) ──
+    if (isExactOnlyMatch(match.team1, match.team2) && betType !== 'exact') {
+      return NextResponse.json(
+        { error: 'Este partido solo admite apuesta de marcador exacto.' },
         { status: 400 }
       );
     }
