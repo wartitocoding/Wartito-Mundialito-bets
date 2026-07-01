@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { isAsadoDate } from '@/lib/asado';
+import { isExactOnlyMatch } from '@/lib/exact-only-matches';
 import { isEliminationStage } from '@/lib/scoring';
 
 interface Match {
@@ -73,9 +74,11 @@ export default function PredictPage() {
     fetchData(token);
   }, [matchId, router]);
 
-  // Día del Asado: forzar marcador exacto (no se permite otro tipo).
+  // Día del Asado, o partidos "solo exacto" acordados: forzar marcador exacto.
   useEffect(() => {
-    if (match && isAsadoDate(match.date)) setBetType('exact');
+    if (match && (isAsadoDate(match.date) || isExactOnlyMatch(match.team1, match.team2))) {
+      setBetType('exact');
+    }
   }, [match]);
 
   // Eliminación (puede ir a penales): no existe "empate". Si quedó seleccionado,
@@ -120,11 +123,13 @@ export default function PredictPage() {
     e.preventDefault();
     setError('');
 
-    // Día del Asado: el tipo de apuesta queda forzado a marcador exacto.
+    // Día del Asado, o partidos "solo exacto" acordados: el tipo de apuesta
+    // queda forzado a marcador exacto.
     const asado = match ? isAsadoDate(match.date) : false;
+    const exactOnly = match ? isExactOnlyMatch(match.team1, match.team2) : false;
     // Eliminación: no existe "empate" — si llegara, se trata como marcador exacto.
     const elim = match ? isEliminationStage(match.stage) : false;
-    const bt = asado ? 'exact' : (elim && betType === 'draw' ? 'exact' : betType);
+    const bt = (asado || exactOnly) ? 'exact' : (elim && betType === 'draw' ? 'exact' : betType);
 
     if (bt === 'exact') {
       if (!Number.isInteger(prediction1) || !Number.isInteger(prediction2)) {
@@ -184,6 +189,7 @@ export default function PredictPage() {
   const isPast = matchDate < new Date();
   const isPlayed = match.result1 !== null;
   const isAsado = isAsadoDate(match.date); // Día del Asado: solo marcador exacto
+  const isExactOnly = isExactOnlyMatch(match.team1, match.team2); // Partido acordado: solo marcador exacto
 
   // Comodín de Asado: es ÚNICO para todo el día (separado del comodín normal por
   // fase). ¿El jugador ya lo aplicó en OTRO partido del asado?
@@ -317,11 +323,16 @@ export default function PredictPage() {
             )}
 
             <form onSubmit={handleSubmit}>
-              {/* ── Día del Asado: solo marcador exacto (sin selector) ── */}
+              {/* ── Día del Asado, o partido acordado: solo marcador exacto (sin selector) ── */}
               {isAsado ? (
                 <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10, padding: '12px 16px', marginBottom: 20, textAlign: 'center' }}>
                   <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#9a3412' }}>🔥 Día del Asado</div>
                   <div style={{ fontSize: '0.8rem', color: '#b45309', marginTop: 2 }}>Hoy solo se apuesta <strong>marcador exacto</strong> · clávalo para sumar 🎯</div>
+                </div>
+              ) : isExactOnly ? (
+                <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '12px 16px', marginBottom: 20, textAlign: 'center' }}>
+                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#1e40af' }}>🎯 Partido especial</div>
+                  <div style={{ fontSize: '0.8rem', color: '#1e40af', marginTop: 2 }}>Acordado entre los jugadores: en este partido solo se apuesta <strong>marcador exacto</strong>.</div>
                 </div>
               ) : (
                 <>
@@ -362,13 +373,13 @@ export default function PredictPage() {
                 </>
               )}
 
-              {/* ── PASO: ingresar marcador (siempre exacto en modo asado) ── */}
+              {/* ── PASO: ingresar marcador (siempre exacto en asado / partido acordado) ── */}
               <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: '0.78rem', fontWeight: 700, marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                {isAsado ? 'Ingresa el marcador exacto' : `2. ${betType === 'exact' ? 'Ingresa el marcador' : 'Confirma tu apuesta'}`}
+                {(isAsado || isExactOnly) ? 'Ingresa el marcador exacto' : `2. ${betType === 'exact' ? 'Ingresa el marcador' : 'Confirma tu apuesta'}`}
               </p>
 
               <div className="card" style={{ padding: '24px 24px', marginBottom: 20 }}>
-                {(isAsado || betType === 'exact') && (
+                {(isAsado || isExactOnly || betType === 'exact') && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                     <div style={{ flex: 1, textAlign: 'center' }}>
                       <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{match.team1}</div>
@@ -427,6 +438,10 @@ export default function PredictPage() {
               {isAsado ? (
                 <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '10px 16px', marginBottom: 20, textAlign: 'center' }}>
                   <span style={{ fontSize: '0.75rem', color: '#9a3412' }}>🎯 Marcador exacto: <strong>3 pts</strong> <span style={{ color: '#b45309' }}>(o nada — hay que clavarlo)</span></span>
+                </div>
+              ) : isExactOnly ? (
+                <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 16px', marginBottom: 20, textAlign: 'center' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#1e40af' }}>🎯 Marcador exacto: <strong>3 pts</strong> <span style={{ color: '#1e40af' }}>(o nada — hay que clavarlo)</span></span>
                 </div>
               ) : (
                 <div style={{ background: 'var(--surface)', borderRadius: 8, padding: '10px 16px', marginBottom: 20, display: 'flex', justifyContent: 'center', gap: 18, flexWrap: 'wrap' }}>

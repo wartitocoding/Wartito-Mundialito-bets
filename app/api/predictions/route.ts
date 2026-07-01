@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initDb, getDatabase } from '@/lib/db';
 import { verifyAuth } from '@/lib/middleware';
 import { isAsadoDate } from '@/lib/asado';
+import { isExactOnlyMatch } from '@/lib/exact-only-matches';
 import { isEliminationStage } from '@/lib/scoring';
 
 export const dynamic = "force-dynamic";
@@ -116,6 +117,14 @@ export async function POST(req: NextRequest) {
     if (betType === 'draw' && isEliminationStage(match.stage)) {
       return NextResponse.json(
         { error: 'En esta fase no hay empate: apuesta Ganador o Marcador exacto (el ganador incluye alargue y penales).' },
+        { status: 400 }
+      );
+    }
+
+    // ── Partidos "solo exacto" acordados entre jugadores (Colombia-Ghana, Portugal-Croacia) ──
+    if (isExactOnlyMatch(match.team1, match.team2) && betType !== 'exact') {
+      return NextResponse.json(
+        { error: 'Este partido solo admite apuesta de marcador exacto.' },
         { status: 400 }
       );
     }

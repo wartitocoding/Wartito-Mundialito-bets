@@ -1,5 +1,6 @@
+require('dotenv').config({ path: '.env.local' });
+
 const Database = require('better-sqlite3');
-const path = require('path');
 
 const email = process.argv[2];
 
@@ -8,7 +9,7 @@ if (!email) {
   process.exit(1);
 }
 
-const dbPath = path.join(__dirname, '..', 'data', 'bets.db');
+const { dbPath } = require('./db-path');
 const db = new Database(dbPath);
 
 try {

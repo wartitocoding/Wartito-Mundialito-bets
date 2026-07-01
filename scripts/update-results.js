@@ -11,7 +11,7 @@ if (!API_KEY) {
   process.exit(1);
 }
 
-const dbPath = path.join(__dirname, '..', 'data', 'bets.db');
+const { dbPath } = require('./db-path');
 const db = new Database(dbPath);
 
 function fetchFromAPI(endpoint) {

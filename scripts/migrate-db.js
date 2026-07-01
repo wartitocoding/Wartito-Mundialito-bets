@@ -1,7 +1,8 @@
-const Database = require('better-sqlite3');
-const path = require('path');
+require('dotenv').config({ path: '.env.local' });
 
-const dbPath = path.join(__dirname, '..', 'data', 'bets.db');
+const Database = require('better-sqlite3');
+
+const { dbPath } = require('./db-path');
 const db = new Database(dbPath);
 
 console.log('🔄 Migrando base de datos...\n');

@@ -47,6 +47,8 @@
 - `npm run sync-matches` - Sincronizar partidos desde API Football
 - `npm run update-results` - Actualizar resultados en vivo y calcular puntos
 - `npm run set-champion` - Establecer campeón mundial y otorgar puntos
+- `npm run backup` - Crear un snapshot manual de la base de datos
+- `npm run restore-backup <archivo> --yes` - Restaurar desde un backup (sin `--yes` es dry-run)
 - `npm run dev` - Iniciar servidor en desarrollo
 - `npm run build` - Compilar para producción
 - `npm run start` - Iniciar servidor de producción
@@ -130,6 +132,60 @@ automáticamente. Sin intervención manual.
 ### Alternativa: GitHub Actions
 Crear `.github/workflows/sync.yml` con un cron que haga `curl` al endpoint.
 Útil si Railway Cron no está disponible en tu plan.
+
+## Backups y protección de datos
+
+**Importante**: SQLite guarda todo en un solo archivo (`bets.db`). Si Railway
+no tiene un **volumen persistente** montado en `/data`, ese archivo vive en
+disco efímero y **un redeploy lo borra por completo** (apuestas, puntos,
+usuarios, todo). Esto ya pasó una vez — por eso existe `manualPoints` en el
+schema de `users`, para reconstruir a mano los puntos que se perdieron (ver
+`app/api/admin/set-points/route.ts`). El sistema de abajo evita que vuelva a
+pasar, pero el paso 0 es de infraestructura y hay que verificarlo a mano.
+
+### 0. Verificar el volumen persistente (hacer esto primero, antes de confiar en cualquier backup)
+
+1. Railway → tu servicio → **Volumes** → confirma que hay un volumen montado
+   en `/data`. Si no existe, créalo.
+2. Verifica en producción: `GET /api/admin/dbinfo` muestra `resolvedDbPath`,
+   `dataVolumeMounted` y los `counts` actuales. Si `dataVolumeMounted` es
+   `false`, arréglalo antes de seguir — ningún backup sirve de nada si cada
+   redeploy borra la DB **y** los backups (viven en el mismo disco).
+
+### 1. Backups locales automáticos (corrupción / bugs de escritura)
+
+El servidor corre un snapshot binario de la DB cada 10 minutos (API nativa
+de backup de SQLite — segura de correr con la app prendida) en
+`<carpeta-de-la-db>/backups/`, con rotación automática (guarda las últimas
+144 copias, ≈24h de historial). Ver `lib/backup.ts`. Snapshot manual:
+```bash
+npm run backup
+```
+
+### 2. Backup externo (protege incluso contra la pérdida del volumen)
+
+`GET /api/admin/backup` (protegido por `ADMIN_TOKEN`, igual que
+`/api/admin/sync-espn`) devuelve un export JSON completo de **todas** las
+tablas. Es la única copia que sale del disco de Railway:
+```bash
+curl -fsS "https://<tu-dominio>/api/admin/backup?token=$ADMIN_TOKEN" \
+  -o "backup-$(date +%F).json"
+```
+Recomendado: un cron diario de GitHub Actions que baje este export y lo
+guarde como artifact (mismo patrón que el cron de sync-espn de arriba).
+⚠️ El export incluye los hashes bcrypt de las contraseñas — trátalo como
+secreto, no lo subas a un repo público.
+
+### 3. Restaurar un backup
+
+Solo por CLI, nunca por HTTP — es destructivo, lo ejecuta un admin a mano:
+```bash
+node scripts/restore-backup.js backup-2026-07-01.json          # dry-run
+node scripts/restore-backup.js backup-2026-07-01.json --yes    # restaura
+```
+Acepta un snapshot `.db` o un export `.json`. Siempre respalda la DB actual
+antes de sobrescribir nada (`<carpeta>/backups/pre-restore-*.db`). Para un
+snapshot `.db`, detén el servidor antes de restaurar y reinícialo después.
 
 ## Integración con API Football (legacy, opcional)
 
