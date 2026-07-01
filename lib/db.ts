@@ -145,6 +145,15 @@ export function initDb() {
     // Equipo que avanza en eliminatorias (incluye penales): 'team1' | 'team2' | NULL.
     // Permite puntuar las apuestas de ganador cuando el cruce se define por penales.
     { name: 'matches.winnerSide', sql: 'ALTER TABLE matches ADD COLUMN winnerSide TEXT' },
+    // Índices: el dashboard sondea /api/matches, /api/rankings, /api/predictions
+    // y /api/bets/public cada 10s; sin estos índices cada poll hace table scans
+    // sobre predictions/matches en los JOIN y WHERE más frecuentes.
+    // (match_comments/notifications se indexan más abajo: sus tablas todavía
+    // no existen en este punto de un init sobre una DB nueva.)
+    { name: 'idx predictions.matchId', sql: 'CREATE INDEX IF NOT EXISTS idx_predictions_matchId ON predictions(matchId)' },
+    { name: 'idx predictions.userId', sql: 'CREATE INDEX IF NOT EXISTS idx_predictions_userId ON predictions(userId)' },
+    { name: 'idx matches.date', sql: 'CREATE INDEX IF NOT EXISTS idx_matches_date ON matches(date)' },
+    { name: 'idx matches.status', sql: 'CREATE INDEX IF NOT EXISTS idx_matches_status ON matches(status)' },
   ];
 
   for (const mig of migrations) {
@@ -172,6 +181,7 @@ export function initDb() {
       FOREIGN KEY(userId) REFERENCES users(id)
     );
   `);
+  database.exec('CREATE INDEX IF NOT EXISTS idx_match_comments_matchId ON match_comments(matchId)');
 
   // Notificaciones
   database.exec(`
@@ -186,6 +196,7 @@ export function initDb() {
       FOREIGN KEY(userId) REFERENCES users(id)
     );
   `);
+  database.exec('CREATE INDEX IF NOT EXISTS idx_notifications_userId ON notifications(userId)');
 
   // Head-to-Head Challenges
   database.exec(`

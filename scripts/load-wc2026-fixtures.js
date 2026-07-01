@@ -9,10 +9,11 @@
  * Uso: node scripts/load-wc2026-fixtures.js
  */
 
-const Database = require('better-sqlite3');
-const path = require('path');
+require('dotenv').config({ path: '.env.local' });
 
-const dbPath = path.join(__dirname, '..', 'data', 'bets.db');
+const Database = require('better-sqlite3');
+
+const { dbPath } = require('./db-path');
 const db = new Database(dbPath);
 
 // [día-junio, hora-ET (24h), minutos, grupo, team1, team2, ciudad]

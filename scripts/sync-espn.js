@@ -9,7 +9,6 @@
 require('dotenv').config({ path: '.env.local' });
 
 const Database = require('better-sqlite3');
-const path = require('path');
 
 const ESPN_URL = 'https://site.web.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard';
 
@@ -115,7 +114,7 @@ function recalcPointsFor(db, externalId, g1, g2) {
 
 async function main() {
   console.log('🌎 Sincronizando con ESPN (Mundial 2026)...\n');
-  const dbPath = path.join(__dirname, '..', 'data', 'bets.db');
+  const { dbPath } = require('./db-path');
   const db = new Database(dbPath);
 
   const days = dateRange('2026-06-11', '2026-07-19');

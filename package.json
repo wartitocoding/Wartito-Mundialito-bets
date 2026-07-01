@@ -16,7 +16,9 @@
     "load-fixtures": "node scripts/load-wc2026-fixtures.js",
     "sync-espn": "node scripts/sync-espn.js",
     "update-results": "node scripts/update-results.js",
-    "set-champion": "node scripts/set-champion.js"
+    "set-champion": "node scripts/set-champion.js",
+    "backup": "node scripts/backup-db.js",
+    "restore-backup": "node scripts/restore-backup.js"
   },
   "dependencies": {
     "react": "^18.3.1",

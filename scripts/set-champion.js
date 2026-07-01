@@ -1,8 +1,9 @@
+require('dotenv').config({ path: '.env.local' });
+
 const Database = require('better-sqlite3');
-const path = require('path');
 const readline = require('readline');
 
-const dbPath = path.join(__dirname, '..', 'data', 'bets.db');
+const { dbPath } = require('./db-path');
 const db = new Database(dbPath);
 
 const TEAMS = [
