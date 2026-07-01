@@ -24,4 +24,5 @@ export function isAsadoModeActive(now: Date = new Date()): boolean {
   return t >= ASADO_START_UTC && t < ASADO_END_UTC;
 }
 
-export const ASADO_BONUS_QUINIELA = 3; // +3 por quiniela perfecta del día
+export const ASADO_BONUS_QUINIELA = 3; // +3 por la quiniela del día
+export const ASADO_QUINIELA_MIN = 4;   // mínimo de marcadores exactos para ganar el bono (4+)

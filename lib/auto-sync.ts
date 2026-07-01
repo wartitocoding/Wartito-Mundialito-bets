@@ -6,8 +6,10 @@ import { syncWithESPN } from './espn-sync';
 // y hace que los puntos aparezcan casi apenas termina el partido.
 const COOLDOWN_LIVE_MS = 45 * 1000;       // 45s si hay partido en vivo
 const COOLDOWN_IDLE_MS = 10 * 60 * 1000;  // 10 min si no hay nada activo
+const FIXTURE_REFRESH_MS = 3 * 60 * 60 * 1000; // refresco de fixtures completos cada 3h
 
 let lastSync = 0;
+let lastFixtureSync = 0;
 let syncing = false;
 
 /**
@@ -23,6 +25,25 @@ export async function maybeSyncResults(db: Database.Database): Promise<void> {
   if (syncing) return;
 
   const now = Date.now();
+
+  // ── (1) Refresco periódico de FIXTURES completos ──────────────────────────
+  // Corre aunque NO haya partidos en vivo ni recién terminados: trae los
+  // equipos/fechas que se van definiendo (cruces de eliminación a medida que
+  // terminan las rondas: 16avos, octavos, cuartos…). Cooldown largo (3h) y
+  // escanea todo el torneo. Es aditivo: nunca borra partidos ni apuestas, solo
+  // actualiza fixtures y recalcula puntos de partidos ya finalizados.
+  if (now - lastFixtureSync >= FIXTURE_REFRESH_MS) {
+    lastFixtureSync = now;
+    lastSync = now;
+    syncing = true;
+    syncWithESPN(db)
+      .then(r => console.log(`✓ fixture-sync: +${r.inserted} nuevos, ${r.updated} fixtures, ${r.resultsUpdated} resultados`))
+      .catch(e => console.error('fixture-sync error:', e))
+      .finally(() => { syncing = false; });
+    return;
+  }
+
+  // ── (2) Sync de RESULTADOS (ventana corta) cuando hay algo activo ─────────
   const twoHoursAgo = new Date(now - 2 * 60 * 60 * 1000).toISOString();
 
   const hasLive = !!(db.prepare(

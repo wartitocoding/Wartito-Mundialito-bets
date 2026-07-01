@@ -3,6 +3,7 @@ import { initDb, getDatabase } from '@/lib/db';
 import { verifyAuth } from '@/lib/middleware';
 import { isAsadoDate } from '@/lib/asado';
 import { isExactOnlyMatch } from '@/lib/exact-only-matches';
+import { isEliminationStage } from '@/lib/scoring';
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,8 @@ function getPhase(stage: string): string {
   if (s.includes('group') || s.includes('grupo')) return 'grupos';
   if (s.includes('quarter') || s.includes('cuarto')) return 'cuartos';
   if (s.includes('semi') || s.includes('tercer') || s.includes('3rd') || s.includes('third')) return 'semis';
-  if (s.includes('16') || s.includes('octavo') || s.includes('round of 16')) return 'octavos';
+  if (s.includes('dieciseis') || s.includes('32') || s.includes('round of 32')) return 'dieciseisavos';
+  if (s.includes('octavo') || s.includes('round of 16')) return 'octavos';
   if (s.includes('final')) return 'final';
   return s.replace(/\s+/g, '_');
 }
@@ -19,6 +21,7 @@ function getPhase(stage: string): string {
 function phaseName(phase: string): string {
   const names: Record<string, string> = {
     grupos: 'la fase de grupos',
+    dieciseisavos: 'los dieciseisavos de final',
     octavos: 'los octavos de final',
     cuartos: 'los cuartos de final',
     semis: 'las semifinales',
@@ -105,6 +108,15 @@ export async function POST(req: NextRequest) {
     if (isAsado && betType !== 'exact') {
       return NextResponse.json(
         { error: '🔥 Día del Asado: hoy solo se permite marcador exacto.' },
+        { status: 400 }
+      );
+    }
+
+    // ── Fases de eliminación (cualquier partido que puede ir a penales, o sea
+    // todo lo que NO es fase de grupos): no se permite apostar "empate". ──
+    if (betType === 'draw' && isEliminationStage(match.stage)) {
+      return NextResponse.json(
+        { error: 'En esta fase no hay empate: apuesta Ganador o Marcador exacto (el ganador incluye alargue y penales).' },
         { status: 400 }
       );
     }

@@ -13,45 +13,16 @@
 
 import Database from 'better-sqlite3';
 import { translateTeam, deduceStage } from './wc2026-data';
-import { calculatePoints, type BetType, type WinnerSide } from './scoring';
+import { calculatePoints, type BetType } from './scoring';
 
 const ESPN_URL = 'https://site.web.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard';
 
 interface ESPNCompetitor {
   homeAway: 'home' | 'away';
   score: string;
-  // En eliminatorias decididas por penales, ESPN marca con `winner: true` al
-  // equipo que avanza y suele exponer el marcador de la tanda en `shootoutScore`.
-  winner?: boolean;
-  shootoutScore?: number | string;
+  winner?: boolean;        // ESPN marca true al equipo que avanza (incluye alargue/penales)
+  shootoutScore?: number;  // marcador de la tanda de penales (solo si hubo)
   team: { displayName: string };
-}
-
-/**
- * Determina quién avanza en un cruce (incluye penales).
- *  - Si los goles son decisivos → gana quien tiene más goles.
- *  - Si hubo empate en 90'+alargue → se mira la tanda de penales
- *    (shootoutScore) y, como respaldo, el flag `winner` de ESPN.
- *  - Empate real (fase de grupos) → null.
- */
-function deduceWinner(
-  home: ESPNCompetitor,
-  away: ESPNCompetitor,
-  result1: number | null,
-  result2: number | null,
-): WinnerSide {
-  if (result1 == null || result2 == null) return null;
-  if (result1 > result2) return 'team1';
-  if (result2 > result1) return 'team2';
-  // Empate en goles: solo en eliminatorias se define por penales.
-  const pen1 = home.shootoutScore != null ? parseInt(String(home.shootoutScore), 10) : NaN;
-  const pen2 = away.shootoutScore != null ? parseInt(String(away.shootoutScore), 10) : NaN;
-  if (!Number.isNaN(pen1) && !Number.isNaN(pen2) && pen1 !== pen2) {
-    return pen1 > pen2 ? 'team1' : 'team2';
-  }
-  if (home.winner) return 'team1';
-  if (away.winner) return 'team2';
-  return null; // empate real (no se decidió un ganador)
 }
 interface ESPNEvent {
   id: string;
@@ -124,14 +95,14 @@ export async function syncWithESPN(
   }
 
   const upsertNew = db.prepare(`
-    INSERT INTO matches (externalId, team1, team2, stage, date, result1, result2, liveScore1, liveScore2, status, winnerSide, createdAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO matches (externalId, team1, team2, stage, date, result1, result2, liveScore1, liveScore2, status, createdAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const updateFixture = db.prepare(`
     UPDATE matches SET team1 = ?, team2 = ?, stage = ?, date = ? WHERE externalId = ?
   `);
   const updateResult = db.prepare(`
-    UPDATE matches SET result1 = ?, result2 = ?, liveScore1 = ?, liveScore2 = ?, status = ?, winnerSide = ? WHERE externalId = ?
+    UPDATE matches SET result1 = ?, result2 = ?, liveScore1 = ?, liveScore2 = ?, status = ? WHERE externalId = ?
   `);
 
   for (const ev of allEvents) {
@@ -149,9 +120,18 @@ export async function syncWithESPN(
       const state = comp.status.type.state;
       const result1 = completed ? parseInt(home.score, 10) : null;
       const result2 = completed ? parseInt(away.score, 10) : null;
-      // Equipo que avanza (incluye penales en eliminatorias). Solo se calcula
-      // cuando el partido terminó; en grupos un empate deja winnerSide = null.
-      const winnerSide = completed ? deduceWinner(home, away, result1, result2) : null;
+      // Ganador del cruce = quien AVANZA, incluyendo 90'+alargue+penales.
+      // 1° el flag `winner` de ESPN (confiable, true al que pasa, también por
+      // penales); 2° si no viniera, se decide por el marcador de penales
+      // (shootoutScore); si tampoco hay, queda null y el scoring usa el marcador.
+      const homeShoot = typeof home.shootoutScore === 'number' ? home.shootoutScore : null;
+      const awayShoot = typeof away.shootoutScore === 'number' ? away.shootoutScore : null;
+      const winnerSide: 'team1' | 'team2' | null = !completed ? null
+        : home.winner ? 'team1'
+        : away.winner ? 'team2'
+        : (homeShoot != null && awayShoot != null && homeShoot !== awayShoot)
+          ? (homeShoot > awayShoot ? 'team1' : 'team2')
+          : null;
       // Marcador "en vivo": el score actual que reporta ESPN aunque el partido
       // no haya terminado. Se guarda aparte para no confundir "partido finalizado"
       // (que se sigue detectando por result1/result2 != null).
@@ -165,7 +145,7 @@ export async function syncWithESPN(
       const existing = db.prepare('SELECT * FROM matches WHERE externalId = ?').get(ev.id) as any;
 
       if (!existing) {
-        upsertNew.run(ev.id, team1, team2, stage, dateUTC, result1, result2, live1, live2, status, winnerSide, Date.now());
+        upsertNew.run(ev.id, team1, team2, stage, dateUTC, result1, result2, live1, live2, status, Date.now());
         result.inserted++;
         if (completed) {
           recalcPointsFor(db, ev.id, result1!, result2!, winnerSide);
@@ -186,10 +166,9 @@ export async function syncWithESPN(
           existing.result2 !== result2 ||
           existing.liveScore1 !== live1 ||
           existing.liveScore2 !== live2 ||
-          existing.status !== status ||
-          existing.winnerSide !== winnerSide;
+          existing.status !== status;
         if (resultChanged) {
-          updateResult.run(result1, result2, live1, live2, status, winnerSide, ev.id);
+          updateResult.run(result1, result2, live1, live2, status, ev.id);
           if (completed) {
             recalcPointsFor(db, ev.id, result1!, result2!, winnerSide);
             result.pointsRecalculated++;
@@ -215,7 +194,7 @@ function recalcPointsFor(
   externalId: string,
   g1: number,
   g2: number,
-  winner: WinnerSide,
+  winner: 'team1' | 'team2' | null = null,
 ) {
   const match = db.prepare('SELECT id FROM matches WHERE externalId = ?').get(externalId) as any;
   if (!match) return;

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { isAsadoDate, isAsadoModeActive, ASADO_BONUS_QUINIELA } from '@/lib/asado';
+import { isAsadoDate, isAsadoModeActive, ASADO_BONUS_QUINIELA, ASADO_QUINIELA_MIN } from '@/lib/asado';
 
 interface Match {
   id: number;
@@ -34,6 +34,14 @@ function betText(b: { betType: string; prediction1: number; prediction2: number 
   if (b.betType === 'team1') return `🏆 ${team1}`;
   if (b.betType === 'team2') return `🏆 ${team2}`;
   return `🎯 ${b.prediction1}–${b.prediction2}`;
+}
+
+// Equipos "por definir": placeholders de cruces aún no resueltos (p. ej.
+// "1° Grupo A", "3° C/D/F/G/H", "Ganador R32 #1"). Esos partidos no se
+// muestran para apostar hasta que se sepan los equipos reales.
+const PLACEHOLDER_TEAM_RE = /grupo|ganador|perdedor|definir|winner|loser|[°/]/i;
+function teamsKnown(m: { team1: string; team2: string }): boolean {
+  return !PLACEHOLDER_TEAM_RE.test(m.team1 || '') && !PLACEHOLDER_TEAM_RE.test(m.team2 || '');
 }
 
 interface Ranking {
@@ -159,6 +167,11 @@ export default function Dashboard() {
   const [ruletaPick, setRuletaPick] = useState<string | null>(null);
   const [asadoWelcomeOpen, setAsadoWelcomeOpen] = useState(false);
   const [recapShared, setRecapShared] = useState(false);
+  // Apuesta directa desde la pestaña Asado (marcador exacto + comodín de asado)
+  const [asadoDraft, setAsadoDraft] = useState<Record<number, { p1: number; p2: number; wc: boolean }>>({});
+  const [asadoSaving, setAsadoSaving] = useState<number | null>(null);
+  const [asadoSaved, setAsadoSaved] = useState<number | null>(null);
+  const [asadoError, setAsadoError] = useState<{ id: number; msg: string } | null>(null);
 
   // Pantalla de bienvenida del asado: aparece al entrar, una vez por el día.
   useEffect(() => {
@@ -169,6 +182,61 @@ export default function Dashboard() {
   const closeAsadoWelcome = () => {
     localStorage.setItem('wmbAsadoWelcome-2026-06-27', '1');
     setAsadoWelcomeOpen(false);
+  };
+
+  // Inicializa el borrador de apuestas del asado desde lo ya guardado (sin pisar
+  // ediciones en curso: solo rellena partidos que aún no estén en el borrador).
+  useEffect(() => {
+    const am = matches.filter(m => isAsadoDate(m.date));
+    if (am.length === 0) return;
+    setAsadoDraft(prev => {
+      const next = { ...prev };
+      am.forEach(m => {
+        if (next[m.id] !== undefined) return;
+        const p = predictions.find(pp => pp.matchId === m.id);
+        next[m.id] = p
+          ? { p1: p.prediction1, p2: p.prediction2, wc: p.isWildcard === 1 }
+          : { p1: 0, p2: 0, wc: false };
+      });
+      return next;
+    });
+  }, [matches, predictions]);
+
+  const stepAsado = (matchId: number, key: 'p1' | 'p2', delta: number) => {
+    setAsadoDraft(prev => {
+      const cur = prev[matchId] || { p1: 0, p2: 0, wc: false };
+      return { ...prev, [matchId]: { ...cur, [key]: Math.max(0, Math.min(20, cur[key] + delta)) } };
+    });
+  };
+  const toggleAsadoWc = (matchId: number, checked: boolean) => {
+    setAsadoDraft(prev => {
+      const cur = prev[matchId] || { p1: 0, p2: 0, wc: false };
+      return { ...prev, [matchId]: { ...cur, wc: checked } };
+    });
+  };
+
+  const submitAsadoBet = async (matchId: number) => {
+    const d = asadoDraft[matchId];
+    if (!d) return;
+    setAsadoSaving(matchId);
+    setAsadoError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/predictions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ matchId, betType: 'exact', prediction1: d.p1, prediction2: d.p2, isWildcard: d.wc }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setAsadoError({ id: matchId, msg: data.error || 'Error al guardar' }); return; }
+      setAsadoSaved(matchId);
+      setTimeout(() => setAsadoSaved(s => (s === matchId ? null : s)), 2500);
+      if (token) fetchData(token);
+    } catch {
+      setAsadoError({ id: matchId, msg: 'No se pudo conectar, reintenta' });
+    } finally {
+      setAsadoSaving(null);
+    }
   };
   const [prevRankings, setPrevRankings] = useState<{[id: number]: number}>({});
   const [matchBetsModal, setMatchBetsModal] = useState<{
@@ -272,7 +340,9 @@ export default function Dashboard() {
   }
 
   const now = new Date();
-  const nextMatches = matches.filter((m) => new Date(m.date) > now);
+  // Solo partidos próximos con equipos YA definidos (los cruces "por definir"
+  // no se muestran para apostar hasta que se sepan los rivales reales).
+  const nextMatches = matches.filter((m) => new Date(m.date) > now && teamsKnown(m));
 
   // Historial de apuestas del jugador: cruza sus predicciones con los partidos.
   const myBets = predictions
@@ -304,7 +374,7 @@ export default function Dashboard() {
   const weeksWithDays = groupMatchesByWeek(matches, now, 3).map(w => {
     const wkMatches = matches.filter(m => {
       const d = new Date(m.date);
-      return notPlayed(m) && d >= w.monday && d <= w.sunday;
+      return notPlayed(m) && teamsKnown(m) && d >= w.monday && d <= w.sunday;
     }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     const days: { date: Date; matches: Match[] }[] = [];
@@ -340,7 +410,7 @@ export default function Dashboard() {
   const asadoMatches = matches.filter(m => isAsadoDate(m.date));
   const asadoFinished = asadoMatches.filter(m => m.result1 !== null && m.result2 !== null);
   // Ranking del día: puntos ganados solo en partidos del asado (desde publicBets),
-  // + bonus de quiniela perfecta si un jugador clavó TODOS los partidos del día.
+  // + bonus de quiniela si un jugador acierta 4+ marcadores exactos del día.
   const asadoDayRanking = (() => {
     const acc: Record<string, { name: string; pts: number; aciertos: number }> = {};
     rankings.forEach(r => { acc[r.name] = { name: r.name, pts: 0, aciertos: 0 }; });
@@ -351,10 +421,9 @@ export default function Dashboard() {
         if ((b.points || 0) > 0) acc[b.userName].aciertos += 1;
       });
     });
-    // Quiniela perfecta: clavó todos los partidos del día (y ya terminaron todos)
-    const allDone = asadoMatches.length > 0 && asadoFinished.length === asadoMatches.length;
+    // Quiniela del día: 4+ marcadores exactos acertados → +3 pts (pueden ser varios).
     return Object.values(acc).map(u => {
-      const quiniela = allDone && u.aciertos === asadoMatches.length;
+      const quiniela = u.aciertos >= ASADO_QUINIELA_MIN;
       return { ...u, quiniela, total: u.pts + (quiniela ? ASADO_BONUS_QUINIELA : 0) };
     }).sort((a, b) => b.total - a.total);
   })();
@@ -466,7 +535,7 @@ export default function Dashboard() {
             <span style={{ fontSize: 22 }}>🔥🥩</span>
             <div style={{ flex: 1, minWidth: 200 }}>
               <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#9a3412' }}>¡Hoy es el Día del Asado!</div>
-              <div style={{ fontSize: '0.8rem', color: '#b45309' }}>Solo marcador exacto · comodín de asado (×2) · quiniela perfecta +3 · trofeo en juego</div>
+              <div style={{ fontSize: '0.8rem', color: '#b45309' }}>Solo marcador exacto · comodín de asado (×2) · quiniela 4+ exactos → +3 · trofeo en juego</div>
             </div>
           </div>
         )}
@@ -508,6 +577,121 @@ export default function Dashboard() {
             <div style={{ marginBottom: 18 }}>
               <h2 style={{ fontWeight: 800, fontSize: '1.3rem', color: '#9a3412', margin: 0, letterSpacing: '-0.02em' }}>🔥 Día del Asado</h2>
               <p style={{ color: '#b45309', fontSize: '0.85rem', margin: '4px 0 0' }}>Solo marcador exacto · el que más sume hoy es el Campeón del Asado 🏆</p>
+            </div>
+
+            {/* ── Apuestas del día: marca el marcador exacto directo acá ── */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>🍢 Tus apuestas de hoy</div>
+              {asadoMatches.length === 0 ? (
+                <div className="card" style={{ padding: 24, textAlign: 'center', color: 'var(--muted)' }}>No hay partidos del asado cargados todavía.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {[...asadoMatches]
+                    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                    .sort((a, b) => {
+                      const openA = new Date(a.date) > now && a.status !== 'live' && a.result1 === null;
+                      const openB = new Date(b.date) > now && b.status !== 'live' && b.result1 === null;
+                      return openA === openB ? 0 : openA ? -1 : 1;
+                    })
+                    .map(m => {
+                      const d = asadoDraft[m.id] || { p1: 0, p2: 0, wc: false };
+                      const pred = predictions.find(p => p.matchId === m.id);
+                      const isPlayed = m.result1 !== null && m.result2 !== null;
+                      const isLive = m.status === 'live';
+                      const started = new Date(m.date) <= now || isLive || isPlayed;
+                      const wcElsewhere = asadoMatches.some(x => x.id !== m.id && asadoDraft[x.id]?.wc);
+                      const dirty = !pred || pred.prediction1 !== d.p1 || pred.prediction2 !== d.p2 || (pred.isWildcard === 1) !== d.wc;
+                      const time = new Date(m.date).toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour: '2-digit', minute: '2-digit' });
+                      const stepBtn: React.CSSProperties = { width: 34, height: 34, borderRadius: 8, border: '1px solid #fed7aa', background: '#fff7ed', color: '#9a3412', fontWeight: 800, fontSize: '1.2rem', cursor: 'pointer', fontFamily: 'inherit', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' };
+                      const lbl: React.CSSProperties = { fontSize: '0.6rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 };
+                      return (
+                        <div key={m.id} className="card" style={{ padding: '14px 16px', borderLeft: '3px solid #ea580c' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                            <span className="tag">{m.stage}</span>
+                            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#9a3412' }}>
+                              🕒 {time}{isLive ? ' · 🔴 en vivo' : isPlayed ? ' · finalizado' : ''}
+                            </span>
+                          </div>
+
+                          {started ? (
+                            /* Cerrado: solo lectura (resultado / tu apuesta / puntos) */
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--navy)' }}>{m.team1} vs {m.team2}</div>
+                              <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                                {isPlayed && (
+                                  <div style={{ textAlign: 'center' }}>
+                                    <div style={lbl}>Resultado</div>
+                                    <div style={{ fontWeight: 800, fontSize: '1.3rem', color: 'var(--navy)', letterSpacing: '-0.04em', lineHeight: 1 }}>{m.result1} – {m.result2}</div>
+                                  </div>
+                                )}
+                                {pred ? (
+                                  <div style={{ textAlign: 'center' }}>
+                                    <div style={lbl}>Tu apuesta {pred.isWildcard === 1 ? '⚡' : ''}</div>
+                                    <div style={{ fontWeight: 800, fontSize: '1.3rem', color: '#9a3412', letterSpacing: '-0.04em', lineHeight: 1 }}>{pred.prediction1} – {pred.prediction2}</div>
+                                  </div>
+                                ) : (
+                                  <span style={{ fontSize: '0.8rem', color: '#dc2626', fontWeight: 600 }}>Sin apuesta 😬</span>
+                                )}
+                                {isPlayed && pred && (
+                                  <div style={{ textAlign: 'center', minWidth: 40 }}>
+                                    <div style={{ fontWeight: 800, fontSize: '1.4rem', lineHeight: 1, color: (pred.points || 0) > 0 ? '#16a34a' : '#ef4444' }}>{(pred.points || 0) > 0 ? `+${pred.points}` : '0'}</div>
+                                    <div style={lbl}>pts</div>
+                                  </div>
+                                )}
+                                {(isPlayed || isLive) && (
+                                  <button onClick={() => openMatchBets(m)} style={{ background: isLive ? '#fff7ed' : '#eff6ff', color: isLive ? '#ea580c' : '#2563eb', border: `1px solid ${isLive ? '#fed7aa' : '#bfdbfe'}`, padding: '6px 12px', borderRadius: 7, fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                                    👁 Ver
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            /* Abierto: apuesta directa de marcador exacto + comodín de asado */
+                            <>
+                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, justifyContent: 'center', marginBottom: 12 }}>
+                                <div style={{ flex: 1, textAlign: 'center' }}>
+                                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--navy)', marginBottom: 8 }}>{m.team1}</div>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                    <button type="button" onClick={() => stepAsado(m.id, 'p1', -1)} style={stepBtn}>−</button>
+                                    <span style={{ fontWeight: 800, fontSize: '1.9rem', color: 'var(--navy)', minWidth: 30, display: 'inline-block', letterSpacing: '-0.03em' }}>{d.p1}</span>
+                                    <button type="button" onClick={() => stepAsado(m.id, 'p1', 1)} style={stepBtn}>+</button>
+                                  </div>
+                                </div>
+                                <span style={{ fontWeight: 800, fontSize: '1.3rem', color: 'var(--border)', paddingTop: 30 }}>—</span>
+                                <div style={{ flex: 1, textAlign: 'center' }}>
+                                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--navy)', marginBottom: 8 }}>{m.team2}</div>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                    <button type="button" onClick={() => stepAsado(m.id, 'p2', -1)} style={stepBtn}>−</button>
+                                    <span style={{ fontWeight: 800, fontSize: '1.9rem', color: 'var(--navy)', minWidth: 30, display: 'inline-block', letterSpacing: '-0.03em' }}>{d.p2}</span>
+                                    <button type="button" onClick={() => stepAsado(m.id, 'p2', 1)} style={stepBtn}>+</button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <label style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: (!d.wc && wcElsewhere) ? 'not-allowed' : 'pointer', userSelect: 'none', background: d.wc ? '#fff7ed' : '#fffaf6', border: `1px solid ${d.wc ? '#fb923c' : '#fed7aa'}`, borderRadius: 8, padding: '9px 12px', marginBottom: 10, opacity: (!d.wc && wcElsewhere) ? 0.55 : 1 }}>
+                                <input type="checkbox" checked={d.wc} disabled={!d.wc && wcElsewhere} onChange={e => toggleAsadoWc(m.id, e.target.checked)} style={{ width: 17, height: 17, cursor: 'inherit', accentColor: '#ea580c' }} />
+                                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#9a3412' }}>
+                                  🔥 Comodín de asado (×2)
+                                  {(!d.wc && wcElsewhere) && <span style={{ fontWeight: 600, color: '#b45309' }}> · ya lo activaste en otro partido</span>}
+                                  {d.wc && <span style={{ fontWeight: 600, color: '#b45309' }}> · es único, solo uno hoy</span>}
+                                </span>
+                              </label>
+
+                              {asadoError?.id === m.id && (
+                                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 12px', marginBottom: 10, color: '#dc2626', fontSize: '0.8rem', fontWeight: 600 }}>{asadoError.msg}</div>
+                              )}
+
+                              <button onClick={() => submitAsadoBet(m.id)} disabled={asadoSaving === m.id || (!!pred && !dirty)}
+                                style={{ width: '100%', background: asadoSaving === m.id ? '#fcd34d' : (!!pred && !dirty) ? '#86efac' : 'linear-gradient(120deg,#9a3412,#ea580c)', color: (!!pred && !dirty) ? '#166534' : 'white', border: 'none', borderRadius: 9, padding: '12px', fontWeight: 800, fontSize: '0.9rem', cursor: asadoSaving === m.id || (!!pred && !dirty) ? 'default' : 'pointer', fontFamily: 'inherit' }}>
+                                {asadoSaving === m.id ? 'Guardando...' : asadoSaved === m.id ? '✓ ¡Guardada!' : pred ? (dirty ? 'Guardar cambios' : '✓ Apuesta guardada') : '🔥 Confirmar marcador'}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
             </div>
 
             {/* ── RECAP: Campeón del Asado (cuando terminan todos los partidos) ── */}
@@ -1092,7 +1276,7 @@ export default function Dashboard() {
               <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🤝 <strong>Empate:</strong> 2 pts <span style={{ color: '#64748b' }}>(solo fase de grupos)</span></div>
               <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>✅ <strong>Ganador:</strong> 1 pt</div>
               <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🏆 <strong>Campeón del mundial:</strong> +10 pts bonus</div>
-              <div style={{ fontSize: '0.78rem', color: '#64748b', flexBasis: '100%' }}>⚽ Fases finales (octavos→final): solo <strong>Ganador</strong> o <strong>Marcador exacto</strong>; el ganador incluye alargue y penales.</div>
+              <div style={{ fontSize: '0.78rem', color: '#64748b', flexBasis: '100%' }}>⚽ Fases finales (16avos→final): solo <strong>Ganador</strong> o <strong>Marcador exacto</strong>; el ganador incluye alargue y penales.</div>
             </div>
           </div>
         )}
@@ -1228,7 +1412,7 @@ export default function Dashboard() {
                 <div style={{ color: '#ffe9d6', fontSize: '0.8rem', lineHeight: 2 }}>
                   🎯 Solo <strong>marcador exacto</strong> (3 pts o nada)<br />
                   🔥 <strong>Comodín de asado</strong> — dobla 1 partido (1 uso)<br />
-                  🧾 <strong>Quiniela perfecta</strong> → +3 pts<br />
+                  🧾 <strong>Quiniela:</strong> 4+ marcadores exactos → +3 pts<br />
                   🍻 <strong>Sorteo del copete</strong> en la pestaña 🔥 Asado<br />
                   🏆 <strong>Trofeo del Asado</strong> (se queda todo el mundial)
                 </div>

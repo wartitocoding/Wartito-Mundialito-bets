@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { isAsadoDate } from '@/lib/asado';
 import { isExactOnlyMatch } from '@/lib/exact-only-matches';
+import { isEliminationStage } from '@/lib/scoring';
 
 interface Match {
   id: number;
@@ -32,15 +33,16 @@ function getPhase(stage: string): string {
   if (s.includes('group') || s.includes('grupo')) return 'grupos';
   if (s.includes('quarter') || s.includes('cuarto')) return 'cuartos';
   if (s.includes('semi') || s.includes('tercer') || s.includes('3rd') || s.includes('third')) return 'semis';
-  if (s.includes('16') || s.includes('octavo') || s.includes('round of 16')) return 'octavos';
+  if (s.includes('dieciseis') || s.includes('32') || s.includes('round of 32')) return 'dieciseisavos';
+  if (s.includes('octavo') || s.includes('round of 16')) return 'octavos';
   if (s.includes('final')) return 'final';
   return s.replace(/\s+/g, '_');
 }
 
 function getPhaseName(phase: string): string {
   const names: Record<string, string> = {
-    grupos: 'Fase de Grupos', octavos: 'Octavos de Final', cuartos: 'Cuartos de Final',
-    semis: 'Semifinales', final: 'Final',
+    grupos: 'Fase de Grupos', dieciseisavos: 'Dieciseisavos de Final', octavos: 'Octavos de Final',
+    cuartos: 'Cuartos de Final', semis: 'Semifinales', final: 'Final',
   };
   return names[phase] || phase;
 }
@@ -78,6 +80,12 @@ export default function PredictPage() {
       setBetType('exact');
     }
   }, [match]);
+
+  // Eliminación (puede ir a penales): no existe "empate". Si quedó seleccionado,
+  // lo cambiamos a marcador exacto.
+  useEffect(() => {
+    if (match && isEliminationStage(match.stage) && betType === 'draw') setBetType('exact');
+  }, [match, betType]);
 
   const fetchData = async (token: string) => {
     try {
@@ -119,7 +127,9 @@ export default function PredictPage() {
     // queda forzado a marcador exacto.
     const asado = match ? isAsadoDate(match.date) : false;
     const exactOnly = match ? isExactOnlyMatch(match.team1, match.team2) : false;
-    const bt = (asado || exactOnly) ? 'exact' : betType;
+    // Eliminación: no existe "empate" — si llegara, se trata como marcador exacto.
+    const elim = match ? isEliminationStage(match.stage) : false;
+    const bt = (asado || exactOnly) ? 'exact' : (elim && betType === 'draw' ? 'exact' : betType);
 
     if (bt === 'exact') {
       if (!Number.isInteger(prediction1) || !Number.isInteger(prediction2)) {
@@ -181,6 +191,20 @@ export default function PredictPage() {
   const isAsado = isAsadoDate(match.date); // Día del Asado: solo marcador exacto
   const isExactOnly = isExactOnlyMatch(match.team1, match.team2); // Partido acordado: solo marcador exacto
 
+  // Comodín de Asado: es ÚNICO para todo el día (separado del comodín normal por
+  // fase). ¿El jugador ya lo aplicó en OTRO partido del asado?
+  const asadoWildcardPred = isAsado ? predictions.find(p => {
+    if (p.isWildcard !== 1 || p.matchId === parseInt(matchId)) return false;
+    const m = allMatches.find(mm => mm.id === p.matchId);
+    return !!m && isAsadoDate(m.date);
+  }) : undefined;
+  const asadoWildcardOnOther = !!asadoWildcardPred;
+  const asadoWildcardMatchInfo = asadoWildcardPred ? allMatches.find(m => m.id === asadoWildcardPred.matchId) : null;
+
+  // Eliminación = cualquier partido que puede ir a penales (todo lo que NO es
+  // grupos): no se permite "empate", solo Ganador o Marcador exacto.
+  const isElim = isEliminationStage(match.stage);
+
   const currentPhase = getPhase(match.stage);
   const wildcardInPhase = predictions
     .filter(p => p.isWildcard === 1)
@@ -210,6 +234,8 @@ export default function PredictPage() {
     { key: 'team1', label: `Gana ${match.team1}`, desc: 'Cualquier marcador a favor', pts: '1 pt si gana',     emoji: '🏆' },
     { key: 'team2', label: `Gana ${match.team2}`, desc: 'Cualquier marcador a favor', pts: '1 pt si gana',     emoji: '🏆' },
   ];
+  // En eliminación no existe "empate": se quita la opción.
+  const visibleBetOptions = isElim ? betOptions.filter(o => o.key !== 'draw') : betOptions;
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--surface)' }}>
@@ -310,12 +336,19 @@ export default function PredictPage() {
                 </div>
               ) : (
                 <>
+                  {/* ── Eliminación: aviso de que no hay empate ── */}
+                  {isElim && (
+                    <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '12px 16px', marginBottom: 20, textAlign: 'center' }}>
+                      <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#1e40af' }}>⚽ Fase de eliminación</div>
+                      <div style={{ fontSize: '0.8rem', color: '#1e40af', marginTop: 2 }}>Acá no hay empate: <strong>Marcador exacto</strong> o <strong>Ganador</strong>. El ganador incluye alargue y penales 🥅</div>
+                    </div>
+                  )}
                   {/* ── SELECTOR DE TIPO DE APUESTA ── */}
                   <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: '0.78rem', fontWeight: 700, marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     1. Elige cómo quieres apostar
                   </p>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 24 }}>
-                    {betOptions.map(opt => {
+                    {visibleBetOptions.map(opt => {
                       const selected = betType === opt.key;
                       return (
                         <button key={opt.key} type="button" onClick={() => setBetType(opt.key)}
@@ -402,64 +435,129 @@ export default function PredictPage() {
               </div>
 
               {/* Sub-resumen */}
-              <div style={{ background: 'var(--surface)', borderRadius: 8, padding: '10px 16px', marginBottom: 20, display: 'flex', justifyContent: 'center', gap: 18, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>🎯 Exacto: <strong style={{ color: 'var(--navy)' }}>3 pts</strong></span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>🤝 Empate: <strong style={{ color: 'var(--navy)' }}>2 pts</strong></span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>🏆 Ganador: <strong style={{ color: 'var(--navy)' }}>1 pt</strong></span>
-              </div>
+              {isAsado ? (
+                <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '10px 16px', marginBottom: 20, textAlign: 'center' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#9a3412' }}>🎯 Marcador exacto: <strong>3 pts</strong> <span style={{ color: '#b45309' }}>(o nada — hay que clavarlo)</span></span>
+                </div>
+              ) : isExactOnly ? (
+                <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 16px', marginBottom: 20, textAlign: 'center' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#1e40af' }}>🎯 Marcador exacto: <strong>3 pts</strong> <span style={{ color: '#1e40af' }}>(o nada — hay que clavarlo)</span></span>
+                </div>
+              ) : (
+                <div style={{ background: 'var(--surface)', borderRadius: 8, padding: '10px 16px', marginBottom: 20, display: 'flex', justifyContent: 'center', gap: 18, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>🎯 Exacto: <strong style={{ color: 'var(--navy)' }}>3 pts</strong></span>
+                  {!isElim && <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>🤝 Empate: <strong style={{ color: 'var(--navy)' }}>2 pts</strong></span>}
+                  <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>🏆 Ganador: <strong style={{ color: 'var(--navy)' }}>1 pt</strong></span>
+                </div>
+              )}
 
               {/* ── COMODÍN ── */}
-              <div style={{ marginBottom: 24 }}>
-                <button type="button" onClick={() => setWildcardOpen(!wildcardOpen)}
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    background: useWildcard ? '#fffbeb' : 'var(--surface)',
-                    border: `1px solid ${useWildcard ? '#fcd34d' : 'var(--border)'}`,
-                    borderRadius: wildcardOpen ? '8px 8px 0 0' : 8,
-                    padding: '11px 16px', cursor: 'pointer', fontFamily: 'inherit',
-                  }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.875rem', fontWeight: 700, color: useWildcard ? '#92400e' : 'var(--navy)' }}>
-                    <span style={{ fontSize: '1.1rem' }}>⚡</span>
-                    {useWildcard ? 'Comodín activado — puntos x2' : 'Usar comodín (dobla los puntos)'}
-                  </span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--muted)', transform: wildcardOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
-                </button>
+              {isAsado ? (
+                /* Comodín de Asado: ÚNICO para todo el día, separado del comodín por fase */
+                <div style={{ marginBottom: 24 }}>
+                  <button type="button" onClick={() => setWildcardOpen(!wildcardOpen)}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      background: useWildcard ? '#fff7ed' : '#fffaf6',
+                      border: `1px solid ${useWildcard ? '#fb923c' : '#fed7aa'}`,
+                      borderRadius: (wildcardOpen || asadoWildcardOnOther) ? '8px 8px 0 0' : 8,
+                      padding: '11px 16px', cursor: 'pointer', fontFamily: 'inherit',
+                    }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.875rem', fontWeight: 700, color: '#9a3412' }}>
+                      <span style={{ fontSize: '1.1rem' }}>🔥</span>
+                      {useWildcard ? 'Comodín de Asado activado — puntos ×2' : 'Comodín de Asado (dobla los puntos)'}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: '#b45309', transform: (wildcardOpen || asadoWildcardOnOther) ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+                  </button>
 
-                {wildcardOpen && (
-                  <div style={{ border: '1px solid var(--border)', borderTop: 'none', borderRadius: '0 0 8px 8px', padding: '16px', background: 'white' }}>
-                    {wildcardOnOtherMatch ? (
-                      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                        <span style={{ fontSize: '1.5rem' }}>🔒</span>
-                        <div>
-                          <p style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--navy)', margin: '0 0 4px' }}>
-                            Comodín ya usado en {getPhaseName(currentPhase)}
-                          </p>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--muted)', margin: 0, lineHeight: 1.5 }}>
-                            Lo usaste en {wildcardMatchInfo?.team1} vs {wildcardMatchInfo?.team2}.
-                            Solo puedes usar un comodín por fase.
-                          </p>
+                  {(wildcardOpen || asadoWildcardOnOther) && (
+                    <div style={{ border: '1px solid #fed7aa', borderTop: 'none', borderRadius: '0 0 8px 8px', padding: '16px', background: 'white' }}>
+                      {asadoWildcardOnOther ? (
+                        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                          <span style={{ fontSize: '1.5rem' }}>🔒</span>
+                          <div>
+                            <p style={{ fontWeight: 700, fontSize: '0.875rem', color: '#9a3412', margin: '0 0 4px' }}>
+                              Ya usaste tu comodín de asado
+                            </p>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--muted)', margin: 0, lineHeight: 1.5 }}>
+                              Lo aplicaste en {asadoWildcardMatchInfo?.team1} vs {asadoWildcardMatchInfo?.team2}.
+                              Es único: solo uno para todo el día del asado.
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <>
-                        <p style={{ fontSize: '0.875rem', color: 'var(--navy)', margin: '0 0 12px', lineHeight: 1.6 }}>
-                          El comodín <strong>dobla los puntos</strong> que ganes en este partido.
-                        </p>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
-                          <input type="checkbox" checked={useWildcard} onChange={e => setUseWildcard(e.target.checked)}
-                            style={{ width: 18, height: 18, cursor: 'pointer', accentColor: '#f59e0b' }} />
-                          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--navy)' }}>
-                            Activar comodín en este partido
-                          </span>
-                        </label>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--muted)', margin: '10px 0 0', lineHeight: 1.5 }}>
-                          ⚠ Solo 1 comodín por fase del torneo.
-                        </p>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
+                      ) : (
+                        <>
+                          <p style={{ fontSize: '0.875rem', color: '#431407', margin: '0 0 12px', lineHeight: 1.6 }}>
+                            El <strong>comodín de asado</strong> dobla los puntos de este partido. Es <strong>único</strong> para todo el día.
+                          </p>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+                            <input type="checkbox" checked={useWildcard} onChange={e => setUseWildcard(e.target.checked)}
+                              style={{ width: 18, height: 18, cursor: 'pointer', accentColor: '#ea580c' }} />
+                            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#431407' }}>
+                              Activar comodín de asado en este partido
+                            </span>
+                          </label>
+                          <p style={{ fontSize: '0.75rem', color: '#b45309', margin: '10px 0 0', lineHeight: 1.5 }}>
+                            🔥 Solo lo puedes usar en UN partido de hoy. Si no lo usas, se va con el asado (no se acumula).
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ marginBottom: 24 }}>
+                  <button type="button" onClick={() => setWildcardOpen(!wildcardOpen)}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      background: useWildcard ? '#fffbeb' : 'var(--surface)',
+                      border: `1px solid ${useWildcard ? '#fcd34d' : 'var(--border)'}`,
+                      borderRadius: wildcardOpen ? '8px 8px 0 0' : 8,
+                      padding: '11px 16px', cursor: 'pointer', fontFamily: 'inherit',
+                    }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.875rem', fontWeight: 700, color: useWildcard ? '#92400e' : 'var(--navy)' }}>
+                      <span style={{ fontSize: '1.1rem' }}>⚡</span>
+                      {useWildcard ? 'Comodín activado — puntos x2' : 'Usar comodín (dobla los puntos)'}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--muted)', transform: wildcardOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+                  </button>
+
+                  {wildcardOpen && (
+                    <div style={{ border: '1px solid var(--border)', borderTop: 'none', borderRadius: '0 0 8px 8px', padding: '16px', background: 'white' }}>
+                      {wildcardOnOtherMatch ? (
+                        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                          <span style={{ fontSize: '1.5rem' }}>🔒</span>
+                          <div>
+                            <p style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--navy)', margin: '0 0 4px' }}>
+                              Comodín ya usado en {getPhaseName(currentPhase)}
+                            </p>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--muted)', margin: 0, lineHeight: 1.5 }}>
+                              Lo usaste en {wildcardMatchInfo?.team1} vs {wildcardMatchInfo?.team2}.
+                              Solo puedes usar un comodín por fase.
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <p style={{ fontSize: '0.875rem', color: 'var(--navy)', margin: '0 0 12px', lineHeight: 1.6 }}>
+                            El comodín <strong>dobla los puntos</strong> que ganes en este partido.
+                          </p>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+                            <input type="checkbox" checked={useWildcard} onChange={e => setUseWildcard(e.target.checked)}
+                              style={{ width: 18, height: 18, cursor: 'pointer', accentColor: '#f59e0b' }} />
+                            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--navy)' }}>
+                              Activar comodín en este partido
+                            </span>
+                          </label>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--muted)', margin: '10px 0 0', lineHeight: 1.5 }}>
+                            ⚠ Solo 1 comodín por fase del torneo.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <button type="submit" disabled={submitting}
                 style={{

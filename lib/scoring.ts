@@ -17,20 +17,13 @@
  *
  * Si la apuesta usó el comodín (isWildcard = 1), se dobla el puntaje final.
  *
- * NOTA fases finales (octavos→final): el ganador se decide incluyendo
- * 90'+alargue+penales (quién avanza). Para las apuestas team1/team2 esa
- * decisión llega por el parámetro `winner` (lo calcula lib/espn-sync a partir
- * de los goles y, si hubo empate, de los penales/flag de ESPN). Si `winner` no
- * se entrega, el ganador se deduce del marcador de goles (fase de grupos).
- *
- * El marcador exacto y el empate SIEMPRE se evalúan con los goles de
- * 90'+alargue (los penales no cuentan para el marcador): una definición por
- * penales se registra con el resultado de goles igualado.
+ * NOTA fases finales (octavos→final): el botón "empate" se oculta y el
+ * ganador se decide incluyendo 90'+alargue+penales (quién avanza). Esa lógica
+ * de "ganador = quien avanza" se maneja al guardar el resultado del partido
+ * (lib/espn-sync), no acá: a esta función le llega el marcador final y, para
+ * team1/team2, basta con que ese equipo figure como ganador del cruce.
  */
 export type BetType = 'exact' | 'draw' | 'team1' | 'team2';
-
-/** Equipo que avanza en un cruce (incluye penales), o null si fue empate real. */
-export type WinnerSide = 'team1' | 'team2' | null;
 
 export interface PredictionInput {
   betType: BetType;
@@ -43,32 +36,41 @@ export function calculatePoints(
   pred: PredictionInput,
   actual1: number,
   actual2: number,
-  winner?: WinnerSide,
+  winner?: 'team1' | 'team2' | null,
 ): number {
   let points = 0;
   const { betType, prediction1: p1, prediction2: p2 } = pred;
 
-  // Ganador del cruce: si `winner` viene definido (eliminatorias, puede incluir
-  // penales) manda ese; si no, se decide por el marcador de goles.
-  const winsTeam1 = winner != null ? winner === 'team1' : actual1 > actual2;
-  const winsTeam2 = winner != null ? winner === 'team2' : actual2 > actual1;
-
   switch (betType) {
     case 'exact':
-      // Todo-o-nada: solo suma si clava el marcador exacto (goles, sin penales).
+      // Todo-o-nada: solo suma si clava el marcador exacto (marcador de cancha,
+      // 90'+alargue; los penales no cuentan para el "exacto").
       if (p1 === actual1 && p2 === actual2) points = 3;
       break;
     case 'draw':
       if (actual1 === actual2) points = 2;
       break;
     case 'team1':
-      if (winsTeam1) points = 1;
+      // En eliminación, "Ganador" = quien AVANZA (incluye alargue y penales): si
+      // viene el flag de ganador, manda sobre el marcador de cancha. Si no viene
+      // (grupos, o partido sin flag), se decide por el marcador, como siempre.
+      if (winner ? winner === 'team1' : actual1 > actual2) points = 1;
       break;
     case 'team2':
-      if (winsTeam2) points = 1;
+      if (winner ? winner === 'team2' : actual2 > actual1) points = 1;
       break;
   }
 
   if (pred.isWildcard) points *= 2;
   return points;
+}
+
+/**
+ * ¿El partido es de eliminación (puede terminar en penales)? = cualquier fase
+ * que NO sea de grupos. En esas fases NO se permite apostar "empate": solo
+ * Ganador o Marcador exacto, y el ganador incluye alargue y penales.
+ */
+export function isEliminationStage(stage: string | null | undefined): boolean {
+  const s = (stage || '').toLowerCase();
+  return s !== '' && !(s.includes('grupo') || s.includes('group'));
 }
