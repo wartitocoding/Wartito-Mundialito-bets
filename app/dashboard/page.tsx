@@ -342,7 +342,16 @@ export default function Dashboard() {
   const now = new Date();
   // Solo partidos próximos con equipos YA definidos (los cruces "por definir"
   // no se muestran para apostar hasta que se sepan los rivales reales).
-  const nextMatches = matches.filter((m) => new Date(m.date) > now && teamsKnown(m));
+  // Orden: primero los SIN apostar (cronológicos), luego los ya apostados —
+  // así lo pendiente por apostar queda siempre a la mano.
+  const nextMatches = matches
+    .filter((m) => new Date(m.date) > now && teamsKnown(m))
+    .sort((a, b) => {
+      const aBet = predictions.some(p => p.matchId === a.id);
+      const bBet = predictions.some(p => p.matchId === b.id);
+      if (aBet !== bBet) return aBet ? 1 : -1;
+      return new Date(a.date).getTime() - new Date(b.date).getTime();
+    });
 
   // Historial de apuestas del jugador: cruza sus predicciones con los partidos.
   const myBets = predictions

@@ -6,11 +6,13 @@ import { syncWithESPN } from './espn-sync';
 // y hace que los puntos aparezcan casi apenas termina el partido.
 const COOLDOWN_LIVE_MS = 45 * 1000;       // 45s si hay partido en vivo
 const COOLDOWN_IDLE_MS = 10 * 60 * 1000;  // 10 min si no hay nada activo
-const FIXTURE_REFRESH_MS = 3 * 60 * 60 * 1000; // refresco de fixtures completos cada 3h
+const FIXTURE_REFRESH_MS = 60 * 60 * 1000; // refresco de fixtures cada 1h
+const SYNC_STUCK_MS = 5 * 60 * 1000;       // watchdog: un sync no puede durar >5 min
 
 let lastSync = 0;
 let lastFixtureSync = 0;
 let syncing = false;
+let syncStartedAt = 0;
 
 /**
  * Dispara un sync con ESPN si:
@@ -22,22 +24,38 @@ let syncing = false;
  * dashboard consulta cada 10s (/api/matches, /api/rankings, /api/bets/public).
  */
 export async function maybeSyncResults(db: Database.Database): Promise<void> {
-  if (syncing) return;
-
   const now = Date.now();
 
-  // ── (1) Refresco periódico de FIXTURES completos ──────────────────────────
+  // Watchdog: si un sync quedó "corriendo" más de 5 min es que se atascó
+  // (fetch colgado, promesa nunca resuelta). Se libera el flag para que el
+  // sistema se auto-recupere en vez de quedar congelado para siempre.
+  if (syncing && now - syncStartedAt > SYNC_STUCK_MS) {
+    console.warn('⚠ auto-sync: watchdog liberó un sync atascado');
+    syncing = false;
+  }
+  if (syncing) return;
+
+  // ── (1) Refresco periódico de FIXTURES ────────────────────────────────────
   // Corre aunque NO haya partidos en vivo ni recién terminados: trae los
   // equipos/fechas que se van definiendo (cruces de eliminación a medida que
-  // terminan las rondas: 16avos, octavos, cuartos…). Cooldown largo (3h) y
-  // escanea todo el torneo. Es aditivo: nunca borra partidos ni apuestas, solo
-  // actualiza fixtures y recalcula puntos de partidos ya finalizados.
+  // terminan las rondas) y rellena resultados que hayan quedado pendientes.
+  // Ventana INTELIGENTE: desde el partido más antiguo sin resultado (menos 1
+  // día) hasta el fin del torneo — no escanea los días ya resueltos, así el
+  // scan es corto y no gatilla rate-limit de ESPN. Es aditivo: nunca borra
+  // partidos ni apuestas.
   if (now - lastFixtureSync >= FIXTURE_REFRESH_MS) {
     lastFixtureSync = now;
     lastSync = now;
     syncing = true;
-    syncWithESPN(db)
-      .then(r => console.log(`✓ fixture-sync: +${r.inserted} nuevos, ${r.updated} fixtures, ${r.resultsUpdated} resultados`))
+    syncStartedAt = now;
+    const oldestPending = db.prepare(
+      'SELECT MIN(date) as d FROM matches WHERE result1 IS NULL'
+    ).get() as { d: string | null };
+    const startISO = oldestPending?.d
+      ? new Date(new Date(oldestPending.d).getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      : new Date(now - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    syncWithESPN(db, { startISO }) // endISO por defecto = fin del torneo
+      .then(r => console.log(`✓ fixture-sync (${r.daysScanned}d): +${r.inserted} nuevos, ${r.updated} fixtures, ${r.resultsUpdated} resultados, ${r.pointsRecalculated} pts${r.errors.length ? `, ${r.errors.length} errores` : ''}`))
       .catch(e => console.error('fixture-sync error:', e))
       .finally(() => { syncing = false; });
     return;
@@ -61,6 +79,7 @@ export async function maybeSyncResults(db: Database.Database): Promise<void> {
 
   lastSync = now;
   syncing = true;
+  syncStartedAt = now;
 
   // Ventana corta: solo hoy ± 1 día (≈3 llamadas a ESPN en vez de 39).
   // Así el sync de resultados es rápido y no satura ESPN aunque corra seguido.

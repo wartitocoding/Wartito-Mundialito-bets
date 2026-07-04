@@ -34,11 +34,29 @@ interface ESPNEvent {
   }>;
 }
 
-async function fetchDay(yyyymmdd: string): Promise<ESPNEvent[]> {
-  const res = await fetch(`${ESPN_URL}?dates=${yyyymmdd}`);
-  if (!res.ok) throw new Error(`ESPN ${res.status} for ${yyyymmdd}`);
-  const data = await res.json();
-  return data.events || [];
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+// Fetch robusto: timeout de 10s por request + 2 reintentos con backoff.
+// Sin esto, un fetch colgado o un 429 de ESPN dejaba el sync atascado y los
+// fixtures/resultados quedaban congelados (visto 29-jun→2-jul).
+async function fetchDay(yyyymmdd: string, retries = 2): Promise<ESPNEvent[]> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const res = await fetch(`${ESPN_URL}?dates=${yyyymmdd}`, {
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (res.status === 429 && attempt < retries) {
+        await sleep(1500 * (attempt + 1)); // rate-limit: esperar y reintentar
+        continue;
+      }
+      if (!res.ok) throw new Error(`ESPN ${res.status} for ${yyyymmdd}`);
+      const data = await res.json();
+      return data.events || [];
+    } catch (e) {
+      if (attempt >= retries) throw e;
+      await sleep(800 * (attempt + 1));
+    }
+  }
 }
 
 function dateRange(startISO: string, endISO: string): string[] {
@@ -88,7 +106,7 @@ export async function syncWithESPN(
       const events = await fetchDay(day);
       allEvents.push(...events);
       result.daysScanned++;
-      await new Promise(r => setTimeout(r, 80));
+      await sleep(250); // pausa entre días para no gatillar rate-limit de ESPN
     } catch (e) {
       result.errors.push(`${day}: ${(e as Error).message}`);
     }
