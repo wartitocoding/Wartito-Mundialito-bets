@@ -4,6 +4,7 @@ declare module 'better-sqlite3' {
       prepare(source: string): Statement;
       exec(source: string): this;
       pragma(source: string, options?: any): any;
+      backup(destinationFile: string, options?: any): Promise<{ totalPages: number; remainingPages: number }>;
       close(): this;
     }
     interface Statement {
