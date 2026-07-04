@@ -36,6 +36,13 @@ interface ESPNEvent {
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
+// Nombre "placeholder" de un cruce aún no resuelto (misma convención que el
+// dashboard): "1° Grupo A", "Ganador R32 #4", "3° C/D/F/G/H", etc.
+const PLACEHOLDER_TEAM_RE = /grupo|ganador|perdedor|definir|winner|loser|[°/]/i;
+function isPlaceholderTeam(name: string | null | undefined): boolean {
+  return !name || PLACEHOLDER_TEAM_RE.test(name);
+}
+
 // Fetch robusto: timeout de 10s por request + 2 reintentos con backoff.
 // Sin esto, un fetch colgado o un 429 de ESPN dejaba el sync atascado y los
 // fixtures/resultados quedaban congelados (visto 29-jun→2-jul).
@@ -170,13 +177,22 @@ export async function syncWithESPN(
           result.pointsRecalculated++;
         }
       } else {
+        // Un nombre real NUNCA se pisa con un placeholder: ESPN a ratos devuelve
+        // los cruces como "Round of 32 4 Winner" aunque ya estaban resueltos
+        // (glitch transitorio) y eso hacía retroceder "Brasil vs Noruega" a
+        // "Ganador R32 #4", ocultando el partido de las vistas de apuesta.
+        // Real→real y placeholder→real siguen permitidos.
+        const keep1 = isPlaceholderTeam(team1) && !isPlaceholderTeam(existing.team1);
+        const keep2 = isPlaceholderTeam(team2) && !isPlaceholderTeam(existing.team2);
+        const newTeam1 = keep1 ? existing.team1 : team1;
+        const newTeam2 = keep2 ? existing.team2 : team2;
         const fixtureChanged =
-          existing.team1 !== team1 ||
-          existing.team2 !== team2 ||
+          existing.team1 !== newTeam1 ||
+          existing.team2 !== newTeam2 ||
           existing.stage !== stage ||
           existing.date !== dateUTC;
         if (fixtureChanged) {
-          updateFixture.run(team1, team2, stage, dateUTC, ev.id);
+          updateFixture.run(newTeam1, newTeam2, stage, dateUTC, ev.id);
           result.updated++;
         }
         const resultChanged =

@@ -308,7 +308,15 @@ export default function Dashboard() {
         fetch('/api/predictions', { headers }),
         fetch('/api/bets/public', { headers }),
       ]);
-      if (!matchesRes.ok || !rankingsRes.ok || !predictionsRes.ok) throw new Error('Error');
+      // Solo un 401 (token inválido/expirado) cierra sesión. Cualquier otro
+      // fallo (502 de un redeploy, red del celular, timeout) es transitorio:
+      // se salta este ciclo y el próximo poll (10s) reintenta solo.
+      if (predictionsRes.status === 401) {
+        localStorage.removeItem('token');
+        router.push('/login');
+        return;
+      }
+      if (!matchesRes.ok || !rankingsRes.ok || !predictionsRes.ok) return;
       const [matchesData, rankingsData, predictionsData] = await Promise.all([
         matchesRes.json(), rankingsRes.json(), predictionsRes.json(),
       ]);
@@ -323,8 +331,7 @@ export default function Dashboard() {
         setUser(me);
       }
     } catch {
-      localStorage.removeItem('token');
-      router.push('/login');
+      // Error de red/transitorio: no cerrar sesión; el próximo poll reintenta.
     }
   };
 
