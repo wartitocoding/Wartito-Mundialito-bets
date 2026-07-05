@@ -1293,6 +1293,7 @@ export default function Dashboard() {
               <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>✅ <strong>Ganador:</strong> 1 pt</div>
               <div style={{ fontSize: '0.825rem', color: '#1e40af' }}>🏆 <strong>Campeón del mundial:</strong> +10 pts bonus</div>
               <div style={{ fontSize: '0.78rem', color: '#64748b', flexBasis: '100%' }}>⚽ Fases finales (16avos→final): solo <strong>Ganador</strong> o <strong>Marcador exacto</strong>; el ganador incluye alargue y penales.</div>
+              <div style={{ fontSize: '0.78rem', color: '#1e40af', flexBasis: '100%' }}>🎯 <strong>Desde el 6 de julio:</strong> todos los partidos se apuestan solo con <strong>marcador exacto</strong> (3 pts o nada).</div>
             </div>
           </div>
         )}

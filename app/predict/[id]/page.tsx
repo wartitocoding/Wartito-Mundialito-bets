@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { isAsadoDate } from '@/lib/asado';
-import { isExactOnlyMatch } from '@/lib/exact-only-matches';
+import { isExactOnly as exactOnlyRule } from '@/lib/exact-only-matches';
 import { isEliminationStage } from '@/lib/scoring';
 
 interface Match {
@@ -76,7 +76,7 @@ export default function PredictPage() {
 
   // Día del Asado, o partidos "solo exacto" acordados: forzar marcador exacto.
   useEffect(() => {
-    if (match && (isAsadoDate(match.date) || isExactOnlyMatch(match.team1, match.team2))) {
+    if (match && (isAsadoDate(match.date) || exactOnlyRule(match))) {
       setBetType('exact');
     }
   }, [match]);
@@ -126,7 +126,7 @@ export default function PredictPage() {
     // Día del Asado, o partidos "solo exacto" acordados: el tipo de apuesta
     // queda forzado a marcador exacto.
     const asado = match ? isAsadoDate(match.date) : false;
-    const exactOnly = match ? isExactOnlyMatch(match.team1, match.team2) : false;
+    const exactOnly = match ? exactOnlyRule(match) : false;
     // Eliminación: no existe "empate" — si llegara, se trata como marcador exacto.
     const elim = match ? isEliminationStage(match.stage) : false;
     const bt = (asado || exactOnly) ? 'exact' : (elim && betType === 'draw' ? 'exact' : betType);
@@ -189,7 +189,7 @@ export default function PredictPage() {
   const isPast = matchDate < new Date();
   const isPlayed = match.result1 !== null;
   const isAsado = isAsadoDate(match.date); // Día del Asado: solo marcador exacto
-  const isExactOnly = isExactOnlyMatch(match.team1, match.team2); // Partido acordado: solo marcador exacto
+  const isExactOnly = exactOnlyRule(match); // Solo exacto: desde el 6-jul (todos) o cruce puntual acordado
 
   // Comodín de Asado: es ÚNICO para todo el día (separado del comodín normal por
   // fase). ¿El jugador ya lo aplicó en OTRO partido del asado?
@@ -331,8 +331,8 @@ export default function PredictPage() {
                 </div>
               ) : isExactOnly ? (
                 <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '12px 16px', marginBottom: 20, textAlign: 'center' }}>
-                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#1e40af' }}>🎯 Partido especial</div>
-                  <div style={{ fontSize: '0.8rem', color: '#1e40af', marginTop: 2 }}>Acordado entre los jugadores: en este partido solo se apuesta <strong>marcador exacto</strong>.</div>
+                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#1e40af' }}>🎯 Solo marcador exacto</div>
+                  <div style={{ fontSize: '0.8rem', color: '#1e40af', marginTop: 2 }}>Acordado entre los jugadores: desde el <strong>6 de julio</strong> todos los partidos se apuestan solo con <strong>marcador exacto</strong> (3 pts o nada).</div>
                 </div>
               ) : (
                 <>
