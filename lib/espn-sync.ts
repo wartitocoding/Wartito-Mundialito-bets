@@ -210,6 +210,26 @@ export async function syncWithESPN(
           result.resultsUpdated++;
         }
       }
+
+      // ── Campeón del mundial ────────────────────────────────────────────────
+      // Al finalizar la FINAL, otorga +10 pts a quien predijo al ganador del
+      // torneo (incluye alargue y penales vía winnerSide; fallback al marcador),
+      // y 0 al resto. Usa el nombre del equipo tal como está en la DB (español),
+      // así calza con users.championPrediction. Idempotente: se puede correr
+      // muchas veces sin duplicar. No toca predictions.
+      if (completed && stage === 'Final') {
+        let champion: string | null = null;
+        if (winnerSide === 'team1') champion = team1;
+        else if (winnerSide === 'team2') champion = team2;
+        else if (result1 != null && result2 != null && result1 !== result2) {
+          champion = result1 > result2 ? team1 : team2;
+        }
+        if (champion) {
+          db.prepare(
+            'UPDATE users SET championPoints = CASE WHEN championPrediction = ? THEN 10 ELSE 0 END'
+          ).run(champion);
+        }
+      }
     } catch (e) {
       result.errors.push(`evento ${ev.id}: ${(e as Error).message}`);
     }
